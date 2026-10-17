@@ -1,0 +1,50 @@
+[
+  {
+    "brand": "nikon",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/nikon.svg",
+    "sha256": "f8d218c1c1188412c0975ea5815cbb3f82923af68adecf3389ae01d41215cedc",
+    "layers": 1
+  },
+  {
+    "brand": "canon",
+    "source": "https://global.canon/01cmn/img/common/logo.svg",
+    "sha256": "b3467376fa7bed45ba22d90e8a81f604ebd5f4bb730bd21416437f11a70ba325",
+    "layers": 5
+  },
+  {
+    "brand": "sony",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sony.svg",
+    "sha256": "d012ec936e65a255f7b7b49a7e99c5aa7ab919fbc1487d8e09af82031c0e7090",
+    "layers": 1
+  },
+  {
+    "brand": "fujifilm",
+    "source": "https://global.fujifilm.com/themes/custom/fujifilm_com_g2/common/img/fujifilm_corporate_logo.svg",
+    "sha256": "f800a112d6b64c454fe07970ae1b2b6a7d4eef6a663db9ab3f3e3025f039fdcd",
+    "layers": 9
+  },
+  {
+    "brand": "leica",
+    "source": "https://leica-camera.com/themes/custom/leica_redesign_theme/logo.svg",
+    "sha256": "5edc10c74a9acbf97c18e7de2d9d332fd0d2ffb0936eea32baf20b7c653815b4",
+    "layers": 2
+  },
+  {
+    "brand": "hasselblad",
+    "source": "https://www.hasselblad.com/assets/icons/logo-white.svg",
+    "sha256": "a031cb3d197dc06049081d167d60c2110c4adc74eb34ea256922815644500e56",
+    "layers": 1
+  },
+  {
+    "brand": "dji",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/dji.svg",
+    "sha256": "8a589463e3007e665ffe1f36fa484fefdb34247aad77cca7a3983d2ba38ef1be",
+    "layers": 1
+  },
+  {
+    "brand": "insta360",
+    "source": "https://wassets.insta360.com/common/739ce316523b43ed953175d4d4f03c64/black-sc.svg",
+    "sha256": "6d791a12c8230f4d2bce67465ce34dae4dd4ec1b60846881223585a96bc4f799",
+    "layers": 1
+  }
+]

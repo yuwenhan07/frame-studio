@@ -1,0 +1,17 @@
+name: macOS checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core rendering checks
+        run: swift run -c release FrameChecks
+      - name: Selection, drop and session checks
+        run: zsh scripts/check-selection.sh
+      - name: Build and verify app signature
+        run: zsh scripts/build.sh
