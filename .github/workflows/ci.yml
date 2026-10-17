@@ -1,6 +1,7 @@
 name: macOS checks
 on:
   push:
+    branches: ['**']
   pull_request:
 permissions:
   contents: read

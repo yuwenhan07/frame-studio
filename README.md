@@ -69,7 +69,7 @@ App 自动保存照片列表及顺序、当前预览、批量勾选、模板样�
 
 品牌默认自动识别，支持 Nikon、Canon、SONY、FUJIFILM、Leica、Hasselblad、LUMIX、OLYMPUS、OM SYSTEM、PENTAX、RICOH、DJI、Insta360。优先读取照片品牌字段；品牌字段为空时尝试识别型号内的品牌名称，仍无信息时留空，未知品牌保留原文字。Insta360 同时识别 `insta 360`、`影石` 与 `Arashi Vision` 等品牌写法。也可手动选择，或选择「自定义文字」编辑当前照片的品牌名。
 
-Nikon、Canon、SONY、FUJIFILM、Leica、Hasselblad、DJI、Insta360 使用内置矢量轮廓；保留 Canon 红色、富士红色细节与徕卡红点，关闭「使用品牌色」可改为黑白。其余品牌使用系统粗体文字。品牌字标不受个人落款字体影响；上传透明 PNG 等图片并启用后，可替换为自定义 Logo。既有模板上传的 Logo 不会自动覆盖经典品牌标志。SVG 来源、哈希和转换说明见 [品牌素材说明](Assets/BrandSources/README.md)，正常使用完全离线。
+Nikon、Canon、SONY、FUJIFILM、Leica、Hasselblad、DJI、Insta360 使用内置矢量轮廓；保留 Canon 红色、富士红色细节与徕卡红点，关闭「使用品牌色」可改为黑白。其余品牌使用系统粗体文字。品牌字标不受个人落款字体影响；上传透明 PNG 等图片并启用后，可替换为自定义 Logo。既有模板上传的 Logo 不会自动覆盖经典品牌标志。SVG 来源和转换说明见 [品牌素材说明](Assets/BrandSources/README.md)，正常使用完全离线。
 
 「水印信息」可修改当前照片型号、焦距、光圈、快门、ISO 和个人落款。日期仅来自有效 EXIF 原始拍摄时间，保留相机当地时间，缺失时留空。个人落款沿用独立中英文字体。开启自动品牌时，批量每张照片分别识别；手动品牌与自定义 Logo 共用于整批照片，型号、参数和日期仍分别读取。品牌、布局、开关及尺寸设置均随会话保存。
 
@@ -104,7 +104,7 @@ cd frame-studio
 zsh scripts/build.sh --install
 ```
 
-安装脚本在已有安装时停止，避免覆盖既有版本。仅构建可使用 `zsh scripts/build.sh`，输出在 `dist/映框.app`。App 为本机 ad-hoc 签名，未经过 Apple 公证。公开安装包面向 Apple Silicon、macOS 14 及以上；旧系统和 Intel 尚未实际验证。下载后解压，将 `映框.app` 拖入「应用程序」。macOS 可能提示无法验证开发者，确认来源和校验和后可按系统的「隐私与安全性」提示允许打开。使用 App 无需网络服务或账号。
+安装脚本在已有安装时停止，避免覆盖既有版本。仅构建可使用 `zsh scripts/build.sh`，输出在 `dist/映框.app`。App 为本机 ad-hoc 签名，未经过 Apple 公证。公开安装包面向 Apple Silicon、macOS 14 及以上；旧系统和 Intel 尚未实际验证。下载后解压，将 `映框.app` 拖入「应用程序」。macOS 可能提示无法验证开发者，确认来源后可按系统的「隐私与安全性」提示允许打开。使用 App 无需网络服务或账号。
 
 ## 验证
 

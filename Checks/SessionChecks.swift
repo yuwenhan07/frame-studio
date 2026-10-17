@@ -210,8 +210,10 @@ struct SessionChecks {
                 let isolated = StudioSessionStore(root: root.appendingPathComponent("invalid-\(field)"))
                 try fm.createDirectory(at: isolated.root, withIntermediateDirectories: true)
                 try JSONSerialization.data(withJSONObject: tampered).write(to: isolated.sessionURL)
-                do { _ = try isolated.load(); try check(false, "会话不能恢复远程路径") }
-                catch { try check(true, "会话拒绝远程 \(field) 路径") }
+                var rejected = false
+                do { _ = try isolated.load() }
+                catch { rejected = (error as NSError).domain == "StudioSession" }
+                try check(rejected, "会话拒绝远程 \(field) 路径")
             }
             try Data("broken checkpoint".utf8).write(to: sessionStore.sessionURL)
             let fallback = try sessionStore.load()
@@ -224,8 +226,10 @@ struct SessionChecks {
             let badStore = StudioSessionStore(root: bad)
             let broken = Data("invalid session".utf8)
             try broken.write(to: badStore.sessionURL)
-            do { _ = try badStore.load(); try check(false, "损坏会话不应静默当作空会话") }
-            catch { try check(try Data(contentsOf: badStore.sessionURL) == broken, "恢复失败仍保留原文件") }
+            var unreadable = false
+            do { _ = try badStore.load() }
+            catch { unreadable = (error as NSError).domain == "StudioSession" }
+            try check(try unreadable && Data(contentsOf: badStore.sessionURL) == broken, "恢复失败仍保留原文件")
             let fileRoot = root.appendingPathComponent("not-a-folder")
             try Data("KEEP".utf8).write(to: fileRoot)
             let blocked = StudioModel(sessionStore: StudioSessionStore(root: fileRoot))
