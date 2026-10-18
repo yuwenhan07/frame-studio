@@ -3,7 +3,7 @@ import ImageIO
 import UniformTypeIdentifiers
 
 public enum FrameError: LocalizedError {
-    case unreadable, oversized, rendering, encoding, localFilesOnly, originalProtected
+    case unreadable, oversized, rendering, encoding, localFilesOnly, originalProtected, invalidBarcode
     public var errorDescription: String? {
         switch self {
         case .unreadable: return "无法读取这张图片。请尝试 JPEG、PNG、HEIC 或 TIFF 文件。"
@@ -12,6 +12,7 @@ public enum FrameError: LocalizedError {
         case .encoding: return "图片保存失败，请检查保存位置是否可写。"
         case .localFilesOnly: return "只支持 Mac 上的本地图片文件。"
         case .originalProtected: return "请选择一个新的文件名，保留列表中所有导入的原始照片。"
+        case .invalidBarcode: return "条形码内容请使用不超过 48 个英文、数字或半角符号；留空可隐藏条形码。"
         }
     }
 }

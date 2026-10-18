@@ -49,6 +49,10 @@ struct SessionChecks {
         try check(model.style.template == .classicFrame && model.style.classicBrand == .hasselblad
             && model.style.classicArrangement == .split && model.style.classicFooter == 0.14 && model.style.classicShowDate,
             "独立进程恢复经典模板、品牌、布局、底栏和信息开关")
+        try check(model.style.ticketTitle == "Journey" && model.style.ticketSubtitle == "旅途"
+            && model.style.ticketMark == .barcode && model.style.ticketBarcodeValue == "TICKET-2026"
+            && model.style.ticketStampTop == "TRAVEL CLUB" && model.style.ticketFooter == 0.23,
+            "独立进程恢复 Tickets 文案、条码、邮戳文字与底栏设置")
         try check(model.items[0].paletteOverride?.isEmpty == true && model.items[0].colorWalkOverride?.hex == "#4A7B2C"
             && model.batchSelectedCount == 1 && model.hasCustomLogo, "独立进程恢复删空色卡、主色、批量勾选和 Logo")
         try check(model.flushSession(), "独立进程可继续保存恢复后的会话")
@@ -101,6 +105,9 @@ struct SessionChecks {
             first.style.postageDateMode = .custom
             first.style.postageCustomDate = "2026/10/11"
             first.style.postageMargin = 0.14
+            first.style.ticketTitle = "Journey"; first.style.ticketSubtitle = "旅途"
+            first.style.ticketMark = .barcode; first.style.ticketBarcodeValue = "TICKET-2026"
+            first.style.ticketStampTop = "TRAVEL CLUB"; first.style.ticketFooter = 0.23
             first.style.classicBrand = .hasselblad
             first.style.classicArrangement = .split
             first.style.classicFooter = 0.14
@@ -143,6 +150,15 @@ struct SessionChecks {
                 && restored.style.classicArrangement == .split && restored.style.classicShowDate
                 && restored.style.postagePlace == "Beijing 北京" && restored.style.signature == "会话 / Session 🐟",
                 "重置经典版式保留品牌、内容开关、落款与其他模板的编辑")
+            restored.resetTicketStyle()
+            try check(restored.style.ticketFooter == FrameStyle().ticketFooter && restored.style.ticketTitle == "Journey"
+                && restored.style.ticketMark == .barcode && restored.style.ticketBarcodeValue == "TICKET-2026"
+                && restored.style.ticketStampTop == "TRAVEL CLUB" && restored.style.postagePlace == "Beijing 北京",
+                "重置 Tickets 版式保留文案、贴印模式、条码、邮戳和其他模板")
+            restored.selectTemplate(.tickets)
+            try await loaded(restored, b)
+            try check(restored.inspectorTab == 1 && restored.batchSelectedCount == 1
+                && restored.photo?.url == b, "切换 Tickets 打开样式区并保留当前照片和勾选")
             restored.style.classicUseCustomLogo = true
             restored.removeLogo()
             try check(!restored.hasCustomLogo && !restored.style.classicUseCustomLogo,

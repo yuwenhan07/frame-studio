@@ -17,6 +17,9 @@ public final class FrameRenderer {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw FrameError.rendering }
         context.interpolationQuality = .high
         let canvas = CGRect(x: 0, y: 0, width: layout.width, height: layout.height)
+        if style.template == .tickets {
+            return try renderTicket(photo: photo, metadata: metadata, style: style, width: width, context: context, preview: preview)
+        }
         if style.template == .classicFrame {
             return try renderClassic(photo: photo, metadata: metadata, style: style, width: width, context: context, preview: preview, logo: logo)
         }
@@ -96,7 +99,7 @@ public final class FrameRenderer {
         return image
     }
 
-    private func drawBlurredBackground(photo: PhotoDocument, canvas: CGRect, context: CGContext,
+    func drawBlurredBackground(photo: PhotoDocument, canvas: CGRect, context: CGContext,
                                        blur: Double, brightness: Double) throws {
         // Limit only the already-blurred background. The foreground uses original pixels at export.
         let backgroundScale = min(1, 1800 / CGFloat(max(canvas.width, canvas.height)))

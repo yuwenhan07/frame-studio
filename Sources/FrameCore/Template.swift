@@ -7,13 +7,14 @@ public enum TemplateID: String, CaseIterable, Codable, Identifiable, Sendable {
     case colorWalk
     case postageFrame
     case classicFrame
+    case tickets
     public var id: String { rawValue }
     public var isPalette: Bool { self == .colorCircles || self == .colorSquares }
     public var title: String {
-        switch self { case .softFrame: return "柔焦画框"; case .colorCircles: return "圆形色卡"; case .colorSquares: return "方形色卡"; case .colorWalk: return "Color Walk"; case .postageFrame: return "邮票画框"; case .classicFrame: return "经典画框" }
+        switch self { case .softFrame: return "柔焦画框"; case .colorCircles: return "圆形色卡"; case .colorSquares: return "方形色卡"; case .colorWalk: return "Color Walk"; case .postageFrame: return "邮票画框"; case .classicFrame: return "经典画框"; case .tickets: return "Tickets 票券" }
     }
     public var subtitle: String {
-        switch self { case .softFrame: return "同源虚化 · 悬浮照片"; case .colorCircles: return "照片主色 · 圆形呈现"; case .colorSquares: return "照片主色 · 方形与菱形"; case .colorWalk: return "一张照片 · 一种色调"; case .postageFrame: return "齿孔白边 · 旅途落款"; case .classicFrame: return "经典品牌 · 纯白底栏" }
+        switch self { case .softFrame: return "同源虚化 · 悬浮照片"; case .colorCircles: return "照片主色 · 圆形呈现"; case .colorSquares: return "照片主色 · 方形与菱形"; case .colorWalk: return "一张照片 · 一种色调"; case .postageFrame: return "齿孔白边 · 旅途落款"; case .classicFrame: return "经典品牌 · 纯白底栏"; case .tickets: return "旅途票根 · 邮戳与条码" }
     }
 }
 
@@ -64,6 +65,23 @@ public struct FrameStyle: Codable, Equatable, Sendable {
     public var postagePlace = ""
     public var postageDateMode: PostageDateMode = .captureDate
     public var postageCustomDate = ""
+    public var ticketMargin: Double = 0.17
+    public var ticketBorder: Double = 0.028
+    public var ticketFooter: Double = 0.205
+    public var ticketPerforation: Double = 0.0065
+    public var ticketBlur: Double = 0.045
+    public var ticketBrightness: Double = -0.08
+    public var ticketShadow: Double = 0.25
+    public var ticketTextScale: Double = 1
+    public var ticketMarkScale: Double = 1
+    public var ticketTitle: String = "TICKETS"
+    public var ticketSubtitle: String = ""
+    public var ticketDateMode: TicketDateMode = .captureDate
+    public var ticketCustomDate: String = ""
+    public var ticketMark: TicketMark = .stamp
+    public var ticketStampTop: String = "WORLD POST"
+    public var ticketStampBottom: String = "AIR MAIL"
+    public var ticketBarcodeValue: String = "FRAMESTUDIO"
     public var classicArrangement: ClassicArrangement = .centered
     public var classicBrand: CameraBrand = .automatic
     public var classicFooter: Double = 0.12
@@ -93,6 +111,7 @@ public struct FrameStyle: Codable, Equatable, Sendable {
         case colorWalkTextPosition
         case postageVariant, postageMargin, postageBorder, postagePerforation, postageFooter
         case postageBlur, postageBrightness, postageShadow, postageTextScale, postagePlace, postageDateMode, postageCustomDate
+        case ticketMargin, ticketBorder, ticketFooter, ticketPerforation, ticketBlur, ticketBrightness, ticketShadow, ticketTextScale, ticketMarkScale, ticketTitle, ticketSubtitle, ticketDateMode, ticketCustomDate, ticketMark, ticketStampTop, ticketStampBottom, ticketBarcodeValue
         case classicArrangement, classicBrand, classicFooter, classicMargin, classicBrandScale, classicInfoScale
         case classicBrandColor, classicShowCamera, classicShowParameters, classicShowDate, classicShowSignature, classicUseCustomLogo
     }
@@ -143,6 +162,23 @@ public struct FrameStyle: Codable, Equatable, Sendable {
         postagePlace = try values.decodeIfPresent(String.self, forKey: .postagePlace) ?? postagePlace
         postageDateMode = try values.decodeIfPresent(PostageDateMode.self, forKey: .postageDateMode) ?? postageDateMode
         postageCustomDate = try values.decodeIfPresent(String.self, forKey: .postageCustomDate) ?? postageCustomDate
+        ticketMargin = try values.decodeIfPresent(Double.self, forKey: .ticketMargin) ?? ticketMargin
+        ticketBorder = try values.decodeIfPresent(Double.self, forKey: .ticketBorder) ?? ticketBorder
+        ticketFooter = try values.decodeIfPresent(Double.self, forKey: .ticketFooter) ?? ticketFooter
+        ticketPerforation = try values.decodeIfPresent(Double.self, forKey: .ticketPerforation) ?? ticketPerforation
+        ticketBlur = try values.decodeIfPresent(Double.self, forKey: .ticketBlur) ?? ticketBlur
+        ticketBrightness = try values.decodeIfPresent(Double.self, forKey: .ticketBrightness) ?? ticketBrightness
+        ticketShadow = try values.decodeIfPresent(Double.self, forKey: .ticketShadow) ?? ticketShadow
+        ticketTextScale = try values.decodeIfPresent(Double.self, forKey: .ticketTextScale) ?? ticketTextScale
+        ticketMarkScale = try values.decodeIfPresent(Double.self, forKey: .ticketMarkScale) ?? ticketMarkScale
+        ticketTitle = try values.decodeIfPresent(String.self, forKey: .ticketTitle) ?? ticketTitle
+        ticketSubtitle = try values.decodeIfPresent(String.self, forKey: .ticketSubtitle) ?? ticketSubtitle
+        ticketDateMode = try values.decodeIfPresent(TicketDateMode.self, forKey: .ticketDateMode) ?? ticketDateMode
+        ticketCustomDate = try values.decodeIfPresent(String.self, forKey: .ticketCustomDate) ?? ticketCustomDate
+        ticketMark = try values.decodeIfPresent(TicketMark.self, forKey: .ticketMark) ?? ticketMark
+        ticketStampTop = try values.decodeIfPresent(String.self, forKey: .ticketStampTop) ?? ticketStampTop
+        ticketStampBottom = try values.decodeIfPresent(String.self, forKey: .ticketStampBottom) ?? ticketStampBottom
+        ticketBarcodeValue = try values.decodeIfPresent(String.self, forKey: .ticketBarcodeValue) ?? ticketBarcodeValue
         classicArrangement = try values.decodeIfPresent(ClassicArrangement.self, forKey: .classicArrangement) ?? classicArrangement
         classicBrand = try values.decodeIfPresent(CameraBrand.self, forKey: .classicBrand) ?? classicBrand
         classicFooter = try values.decodeIfPresent(Double.self, forKey: .classicFooter) ?? classicFooter
@@ -173,6 +209,9 @@ public struct FrameStyle: Codable, Equatable, Sendable {
             (\.postageMargin, 0.035...0.19), (\.postageBorder, 0.014...0.06), (\.postagePerforation, 0.006...0.022),
             (\.postageFooter, 0.07...0.18), (\.postageBlur, 0...0.085), (\.postageBrightness, -0.5...0.5),
             (\.postageShadow, 0...1), (\.postageTextScale, 0.5...2),
+            (\.ticketMargin, 0.08...0.24), (\.ticketBorder, 0.018...0.05), (\.ticketFooter, 0.13...0.30),
+            (\.ticketPerforation, 0.004...0.012), (\.ticketBlur, 0...0.085), (\.ticketBrightness, -0.5...0.5),
+            (\.ticketShadow, 0...1), (\.ticketTextScale, 0.5...2), (\.ticketMarkScale, 0.6...1.3),
             (\.classicFooter, 0.06...0.22), (\.classicMargin, 0...0.08),
             (\.classicBrandScale, 0.5...2), (\.classicInfoScale, 0.5...2)
         ]
@@ -183,6 +222,7 @@ public struct FrameStyle: Codable, Equatable, Sendable {
     public func sideMargin(imageWidth: Int, imageHeight: Int) -> Double {
         if template == .colorWalk { return 0 }
         if template == .classicFrame { return min(0.08, max(0, classicMargin)) }
+        if template == .tickets { return TicketLayout.margin(self) + TicketLayout.border(self) }
         if template == .postageFrame { return PostageLayout.margin(self) + PostageLayout.border(self) }
         if template.isPalette { return min(0.12, max(0, paletteMargin)) }
         return min(0.15, max(0.005, imageHeight > imageWidth ? portraitMargin : margin))
@@ -199,6 +239,13 @@ public struct FrameLayout {
 
     public init(imageWidth: Int, imageHeight: Int, outputWidth: Int, style: FrameStyle) {
         let w = CGFloat(max(64, outputWidth))
+        if style.template == .tickets {
+            let ticket = TicketLayout(imageWidth: imageWidth, imageHeight: imageHeight, outputWidth: Int(w), style: style)
+            self.width = ticket.width; self.height = ticket.height; self.photoRect = ticket.photoRect
+            self.titleCenterY = ticket.captionRect.midY; self.parametersCenterY = ticket.captionRect.midY
+            self.signatureCenterY = ticket.captionRect.midY
+            return
+        }
         if style.template == .classicFrame {
             let classic = ClassicLayout(imageWidth: imageWidth, imageHeight: imageHeight, outputWidth: Int(w), style: style)
             self.width = classic.width; self.height = classic.height; self.photoRect = classic.photoRect

@@ -119,7 +119,20 @@ struct StudioView: View {
     private func templateThumbnail(_ template: TemplateID) -> some View {
         VStack(spacing: 0) {
             ZStack {
-                if template == .softFrame || template == .postageFrame {
+                if template == .tickets {
+                    Color(red: 0.36, green: 0.46, blue: 0.39)
+                    if let photo = model.photo {
+                        Image(decorative: photo.preview, scale: 1).resizable().scaledToFill()
+                            .frame(width: 48, height: 50).clipped().blur(radius: 4)
+                    }
+                    TicketPaperShape().fill(.white).frame(width: 31, height: 42)
+                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                    if let photo = model.photo {
+                        Image(decorative: photo.preview, scale: 1).resizable().scaledToFill()
+                            .frame(width: 27, height: 29).clipped().offset(y: -4)
+                    }
+                    Circle().stroke(muted.opacity(0.6), lineWidth: 0.5).frame(width: 7, height: 7).offset(x: 9, y: 15)
+                } else if template == .softFrame || template == .postageFrame {
                     Color(red: 0.71, green: 0.52, blue: 0.43)
                     if let photo = model.photo {
                         Image(decorative: photo.preview, scale: 1).resizable().scaledToFill()
@@ -271,6 +284,7 @@ struct StudioView: View {
                     VStack(alignment: .leading, spacing: 21) {
                         if model.inspectorTab == 0 { metadataEditor }
                         else if model.style.template == .colorWalk { colorWalkEditor }
+                        else if model.style.template == .tickets { ticketEditor }
                         else if model.style.template == .postageFrame { postageEditor }
                         else if model.style.template == .classicFrame { classicEditor }
                         else if model.style.template.isPalette { paletteEditor }
@@ -358,7 +372,8 @@ struct StudioView: View {
     }
 
     @ViewBuilder private var metadataEditor: some View {
-        if model.style.template == .colorWalk { colorWalkStampEditor }
+        if model.style.template == .tickets { ticketContentEditor }
+        else if model.style.template == .colorWalk { colorWalkStampEditor }
         else if model.style.template == .classicFrame { classicMetadataEditor }
         else if model.style.template == .postageFrame {
             VStack(alignment: .leading, spacing: 16) {
@@ -429,6 +444,7 @@ struct StudioView: View {
         case .classicFrame: return model.style.classicBrand == .automatic
             ? "共用经典版式，每张照片分别识别品牌、型号与拍摄参数；缺少的信息留空。"
             : "手动选择的品牌共用于整批照片，型号、拍摄参数与日期按照片分别读取。"
+        case .tickets: return "共用票券标题、副标题、邮戳或条码；拍摄日期按各张照片读取，自定义日期整批共用。"
         case .postageFrame: return "共用邮票样式和地点；拍摄日期按每张照片分别读取，自定义日期则整批共用。"
         case .colorWalk: return "共用盖章文字和版式，每张照片分别取色；手动颜色和拍摄时间按各张照片保留。"
         case .colorCircles, .colorSquares: return "沿用当前色卡样式与落款，每张照片独立提取主色。"
@@ -519,6 +535,79 @@ struct StudioView: View {
                 display: String(format: "%.0f%%", model.style.classicInfoScale * 100), defaultValue: defaults.classicInfoScale)
             Button("恢复经典默认版式") { model.resetClassicStyle() }.buttonStyle(.plain).foregroundStyle(accent).font(.system(size: 10))
         }.font(.system(size: 11)).toggleStyle(.switch).controlSize(.mini)
+    }
+
+    private var ticketContentEditor: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle("旅途票根", caption: "TICKETS")
+            labeledField("标题 / 地点", placeholder: "Beijing / 旅行标题", text: $model.style.ticketTitle)
+                .accessibilityIdentifier("ticket-title")
+            labeledField("副标题 · 选填", placeholder: "北京 / 这一程的记录", text: $model.style.ticketSubtitle)
+                .accessibilityIdentifier("ticket-subtitle")
+            Picker("票券日期", selection: $model.style.ticketDateMode) {
+                ForEach(TicketDateMode.allCases) { Text($0.rawValue).tag($0) }
+            }.controlSize(.small).accessibilityIdentifier("ticket-date-mode")
+            if model.style.ticketDateMode == .custom {
+                labeledField("自定义日期", placeholder: "18 OCT 2026", text: $model.style.ticketCustomDate)
+                    .accessibilityIdentifier("ticket-date")
+            } else if model.style.ticketDateMode == .captureDate {
+                let date = TicketDateMode.captureDate.text(metadata: model.metadata, custom: "")
+                Text(date.isEmpty ? "照片没有有效拍摄日期，日期留空。" : "从照片读取：" + date)
+                    .font(.system(size: 9)).foregroundStyle(muted)
+            }
+            SignatureFontPicker(title: "中文字体", selection: $model.style.signatureChineseFont, chinese: true)
+            SignatureFontPicker(title: "英文字体", selection: $model.style.signatureEnglishFont, chinese: false)
+        }.font(.system(size: 11))
+    }
+
+    private var ticketEditor: some View {
+        let defaults = FrameStyle()
+        return VStack(alignment: .leading, spacing: 16) {
+            ticketContentEditor
+            Divider()
+            sectionTitle("右下角贴印", caption: "POSTMARK & BARCODE")
+            Picker("票券贴印", selection: $model.style.ticketMark) {
+                ForEach(TicketMark.allCases) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented).accessibilityIdentifier("ticket-mark")
+            if model.style.ticketMark == .stamp {
+                labeledField("邮戳上弧文字", placeholder: "WORLD POST", text: $model.style.ticketStampTop)
+                labeledField("邮戳下弧文字", placeholder: "AIR MAIL", text: $model.style.ticketStampBottom)
+            } else if model.style.ticketMark == .barcode {
+                labeledField("条码内容", placeholder: "FRAMESTUDIO", text: $model.style.ticketBarcodeValue)
+                    .accessibilityIdentifier("ticket-barcode")
+                if !TicketBarcode.content(model.style.ticketBarcodeValue).isEmpty && !TicketBarcode.isValid(model.style.ticketBarcodeValue) {
+                    Text("请使用 48 个以内的英文、数字或半角符号，修改后即可导出。")
+                        .font(.system(size: 9)).foregroundStyle(.red)
+                } else {
+                    Text("Code 128 · 内容可自定义，留空隐藏；不会自动写入照片位置等信息。识读效果受导出尺寸影响。")
+                        .font(.system(size: 9)).lineSpacing(3).foregroundStyle(muted)
+                }
+            }
+            if model.style.ticketMark != .none {
+                slider("贴印大小", value: $model.style.ticketMarkScale, range: 0.6...1.3,
+                    display: String(format: "%.0f%%", model.style.ticketMarkScale * 100), defaultValue: defaults.ticketMarkScale)
+            }
+            Divider()
+            Text("双击数值，恢复该项默认值").font(.system(size: 9)).foregroundStyle(muted)
+            slider("票券留白", value: $model.style.ticketMargin, range: 0.08...0.24,
+                display: String(format: "%.1f%%", model.style.ticketMargin * 100), defaultValue: defaults.ticketMargin)
+            slider("票券白边", value: $model.style.ticketBorder, range: 0.018...0.05,
+                display: String(format: "%.1f%%", model.style.ticketBorder * 100), defaultValue: defaults.ticketBorder)
+            slider("票根底栏", value: $model.style.ticketFooter, range: 0.13...0.30,
+                display: String(format: "%.1f%%", model.style.ticketFooter * 100), defaultValue: defaults.ticketFooter)
+            slider("票券齿孔", value: $model.style.ticketPerforation, range: 0.004...0.012,
+                display: String(format: "%.2f%%", model.style.ticketPerforation * 100), defaultValue: defaults.ticketPerforation)
+            slider("票券文字大小", value: $model.style.ticketTextScale, range: 0.5...2,
+                display: String(format: "%.0f%%", model.style.ticketTextScale * 100), defaultValue: defaults.ticketTextScale)
+            slider("背景虚化", value: $model.style.ticketBlur, range: 0...0.085,
+                display: String(format: "%.0f%%", model.style.ticketBlur / 0.085 * 100), defaultValue: defaults.ticketBlur)
+            slider("背景明暗", value: $model.style.ticketBrightness, range: -0.5...0.5,
+                display: String(format: "%+.0f%%", model.style.ticketBrightness * 100), defaultValue: defaults.ticketBrightness)
+            slider("悬浮阴影", value: $model.style.ticketShadow, range: 0...1,
+                display: String(format: "%.0f%%", model.style.ticketShadow * 100), defaultValue: defaults.ticketShadow)
+            Button("恢复票券默认版式") { model.resetTicketStyle() }
+                .buttonStyle(.plain).foregroundStyle(accent).font(.system(size: 10))
+        }.font(.system(size: 11))
     }
 
     private var postageVariantPicker: some View {
@@ -837,6 +926,16 @@ struct StudioView: View {
 private struct PostagePaperShape: Shape {
     func path(in rect: CGRect) -> Path {
         let layout = PostageLayout(imageWidth: 3, imageHeight: 2, outputWidth: 1000, style: FrameStyle())
+        let transform = CGAffineTransform(translationX: -layout.cardRect.minX, y: -layout.cardRect.minY)
+            .concatenating(CGAffineTransform(scaleX: rect.width / layout.cardRect.width, y: rect.height / layout.cardRect.height))
+            .concatenating(CGAffineTransform(translationX: rect.minX, y: rect.minY))
+        return Path(layout.outline).applying(transform)
+    }
+}
+
+private struct TicketPaperShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let layout = TicketLayout(imageWidth: 2, imageHeight: 3, outputWidth: 1000, style: FrameStyle())
         let transform = CGAffineTransform(translationX: -layout.cardRect.minX, y: -layout.cardRect.minY)
             .concatenating(CGAffineTransform(scaleX: rect.width / layout.cardRect.width, y: rect.height / layout.cardRect.height))
             .concatenating(CGAffineTransform(translationX: rect.minX, y: rect.minY))

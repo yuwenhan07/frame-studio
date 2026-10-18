@@ -238,6 +238,7 @@ do {
     try runColorWalkChecks(root: root, folder: folder, photo: photo, demo: demo, portrait: portraitDemo, renderer: renderer)
     try runPostageChecks(root: root, folder: folder, photo: photo, demo: demo, portrait: portraitDemo, renderer: renderer)
     try runClassicChecks(root: root, folder: folder, photo: photo, demo: demo, portrait: portraitDemo, renderer: renderer)
+    try runTicketChecks(root: root, folder: folder, photo: photo, demo: demo, portrait: portraitDemo, renderer: renderer)
     let portraitSample = try renderer.render(photo: portraitDemo, metadata: metadata, style: style, width: 1200)
     try ImageWriter.save(portraitSample, to: root.appendingPathComponent("Examples/竖版留白-预览.jpg"), format: .jpeg)
     let noText = try renderer.render(photo: photo, metadata: PhotoMetadata(), style: style, width: 400)

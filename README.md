@@ -2,7 +2,13 @@
 
 [下载最新版](https://github.com/yuwenhan07/frame-studio/releases/latest) · [隐私说明](PRIVACY.md) · [发布审查](docs/code-review.md)
 
-一个完全本地运行的原生 macOS 摄影水印 App。目前提供「柔焦画框」「圆形色卡」「方形色卡」「Color Walk」「邮票画框」「经典画框」六种模板。柔焦画框以同源虚化背景、圆角主图和相机参数呈现照片；色卡在白色底栏显示照片主色与 HEX 色号；Color Walk 在照片上方铺一块代表色并加上文字盖章。邮票画框使用同源虚化背景、齿孔白边和可选的地点日期落款。经典画框在纯白底栏呈现相机品牌与拍摄信息。主照片始终保持完整比例。
+一个完全本地运行的原生 macOS 摄影水印 App。目前提供「柔焦画框」「圆形色卡」「方形色卡」「Color Walk」「邮票画框」「经典画框」「Tickets 票券」七种模板。柔焦画框以同源虚化背景、圆角主图和相机参数呈现照片；色卡在白色底栏显示照片主色与 HEX 色号；Color Walk 在照片上方铺一块代表色并加上文字盖章。邮票画框使用同源虚化背景、齿孔白边和可选的地点日期落款。经典画框在纯白底栏呈现相机品牌与拍摄信息。Tickets 票券以细齿上下边、撕线、旅行信息和右下角贴印呈现照片。主照片始终保持完整比例。
+
+## 操作演示
+
+约 47 秒，展示模板切换与样式调整的实际操作。
+
+https://github.com/user-attachments/assets/c5cd2242-9a5a-452b-8c0f-407143b2f886
 
 | 圆形色卡 | Color Walk |
 | --- | --- |
@@ -75,6 +81,16 @@ Nikon、Canon、SONY、FUJIFILM、Leica、Hasselblad、DJI、Insta360 使用内�
 
 示例文件为 `Examples/经典画框-Nikon.jpg`、`经典画框-Canon.jpg`、`经典画框-SONY.jpg`、`经典画框-FUJIFILM.jpg`、`经典画框-Leica.jpg`、`经典画框-Hasselblad.jpg`、`经典画框-Insta360.jpg` 和 `经典画框-竖版.jpg`。
 
+## Tickets 票券
+
+左侧选择「Tickets 票券」，背景由同一照片虚化铺满，票面上下为细齿边，两侧在横向撕线处留半圆缺口。照片保持完整比例；左下方显示标题、副标题和日期，右下方可切换「旅行邮戳」「条形码」或「不显示」。默认标题为 `TICKETS`，副标题留空，日期读取当前照片有效 EXIF 并显示为 `18 OCT 2026` 这样的格式；缺失时留空，也可自定义或隐藏。
+
+旅行邮戳含圆环、飞机和波浪线，上下弧文字可分别修改。条形码使用 Code 128，可填写不超过 48 个英文、数字或半角符号，默认 `FRAMESTUDIO`，留空隐藏。条码仅编码输入文字，不自动附加照片路径、位置或拍摄信息；识读效果受导出尺寸影响。不支持的内容会在面板提示并阻止导出，避免静默生成错误条码。
+
+可调整票券留白、白边、底栏、齿孔、文字和贴印大小，以及背景虚化、明暗和阴影，双击滑块旁数字恢复该项默认值。「恢复票券默认版式」保留文案、贴印模式、邮戳文字、条码内容、日期模式与字体。中英文字体沿用已有独立设置。单张与批量导出共用版式，各照片分别读取日期，全部编辑随本机会话恢复。
+
+生成示例见 `Examples/Tickets-旅行邮戳.jpg`、`Examples/Tickets-条形码.jpg`、`Examples/Tickets-不显示.jpg` 和 `Examples/Tickets-横版.jpg`。检查包含独立布局和四角像素、齿孔与撕线、贴印范围、长文字边界、日期缺失、旧设置迁移、会话与批量输出；使用 Vision 独立解码器验证实际输出中的条码内容。
+
 ## 导出与文件保护
 
 选择尺寸与 JPEG/PNG 格式后，按 `⇧⌘E` 导出当前照片。右侧「批量选择」可逐张勾选，并提供全选、取消全选和反选。点击「导出已选」或按 `⌥⌘E`，选择一个输出文件夹，只按列表顺序导出勾选的照片；未勾选时不会导出全部。预览哪张照片与批量勾选互不影响。进度条显示已处理数量；可取消，当前照片完成后停止。
@@ -141,6 +157,7 @@ Color Walk 检查覆盖已知颜色与主体/中性照片取色、横竖独立�
 - `Sources/FrameCore/PhotoPalette.swift`：主色提取、面积比例与稳定排序。
 - `Sources/FrameCore/ColorWalk.swift`：代表色选择、盖章第二行内容与文字颜色。
 - `Sources/FrameCore/PostageFrame.swift`：邮票版本、日期、纸面布局与连续齿孔轮廓。
+- `Sources/FrameCore/TicketFrame.swift`、`TicketRenderer.swift`：票券轮廓、日期、邮戳、Code 128 与底栏绘制。
 - `Sources/FrameCore/ClassicFrame.swift`、`ClassicRenderer.swift`：品牌识别、经典布局与底栏绘制。
 - `Sources/FrameCore/BrandVectors.swift`：从固定来源生成的本地品牌矢量轮廓。
 - `Sources/FrameCore/SignatureTypography.swift`：中英文字体分配与缺失字体补全。

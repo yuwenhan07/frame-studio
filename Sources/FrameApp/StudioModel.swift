@@ -659,6 +659,15 @@ final class StudioModel: ObservableObject {
         updated.postageTextScale = defaults.postageTextScale
         style = updated
     }
+    func resetTicketStyle() {
+        let defaults = FrameStyle()
+        var updated = style
+        for key in [\FrameStyle.ticketMargin, \.ticketBorder, \.ticketFooter, \.ticketPerforation,
+                    \.ticketBlur, \.ticketBrightness, \.ticketShadow, \.ticketTextScale, \.ticketMarkScale] {
+            updated[keyPath: key] = defaults[keyPath: key]
+        }
+        style = updated
+    }
     func resetClassicStyle() {
         let defaults = FrameStyle()
         var updated = style
