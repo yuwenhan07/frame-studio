@@ -1,5 +1,10 @@
 import AppKit
 
+public enum ColorWalkBackground: String, CaseIterable, Codable, Identifiable, Sendable {
+    case solid = "纯色色面", horizontalStripes = "横向主色条纹"
+    public var id: String { rawValue }
+}
+
 public enum ColorWalkDetail: String, CaseIterable, Codable, Identifiable, Sendable {
     case captureTime = "拍摄时间", captureDate = "拍摄日期", custom = "自定义文字", none = "不显示"
     public var id: String { rawValue }

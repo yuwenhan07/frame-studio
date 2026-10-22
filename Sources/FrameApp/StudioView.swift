@@ -119,7 +119,24 @@ struct StudioView: View {
     private func templateThumbnail(_ template: TemplateID) -> some View {
         VStack(spacing: 0) {
             ZStack {
-                if template == .tickets {
+                if template.isPrint {
+                    PrintTemplateThumbnail(template: template, style: model.style, photo: model.photo?.preview)
+                } else if template == .walkTicket {
+                    Color(red: 0.972, green: 0.956, blue: 0.921)
+                    RoundedRectangle(cornerRadius: 3).fill(Color(nsColor: model.style.walkTicket.paperColor(photo: model.photo)))
+                        .frame(width: 44, height: 25).shadow(color: .black.opacity(0.2), radius: 2, y: 2)
+                    if let photo = model.photo {
+                        Image(decorative: photo.preview, scale: 1).resizable().scaledToFill()
+                            .frame(width: 12, height: 19).clipped().clipShape(RoundedRectangle(cornerRadius: 1)).offset(x: -13)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("WALK").font(.system(size: 4, weight: .bold, design: .serif))
+                        HStack(spacing: 1) { ForEach(0..<4) { i in
+                            RoundedRectangle(cornerRadius: 0.4).fill([Color.white, muted, accent, ink][i]).frame(width: 3, height: 4)
+                        } }
+                    }.foregroundStyle(.white).offset(x: 3)
+                    Rectangle().fill(.white.opacity(0.4)).frame(width: 0.5, height: 21).offset(x: 14)
+                } else if template == .tickets {
                     Color(red: 0.36, green: 0.46, blue: 0.39)
                     if let photo = model.photo {
                         Image(decorative: photo.preview, scale: 1).resizable().scaledToFill()
@@ -158,7 +175,16 @@ struct StudioView: View {
                         colored: model.style.classicBrandColor, fallback: model.metadata.brand)
                         .frame(width: 29, height: 7).offset(y: 19)
                 } else if template == .colorWalk {
-                    (model.colorWalkColor.map { Color(nsColor: $0.color) } ?? Color(red: 0.65, green: 0.42, blue: 0.43))
+                    if model.style.colorWalkBackground == .horizontalStripes {
+                        if model.paletteColors.isEmpty { Color.white }
+                        else { VStack(spacing: 0) {
+                            ForEach(Array(model.paletteColors.prefix(8).enumerated()), id: \.offset) { _, color in
+                                Rectangle().fill(Color(nsColor: color.color))
+                            }
+                        } }
+                    } else {
+                        (model.colorWalkColor.map { Color(nsColor: $0.color) } ?? Color(red: 0.65, green: 0.42, blue: 0.43))
+                    }
                     if let photo = model.photo {
                         Image(decorative: photo.preview, scale: 1).resizable().scaledToFill()
                             .frame(width: 48, height: 28).clipped().offset(y: 11)
@@ -263,7 +289,7 @@ struct StudioView: View {
             VStack(spacing: 5) {
                 Text(model.isDemo ? "山间暮色 · 程序绘制示例" : (model.photo?.url.lastPathComponent ?? "等待导入照片"))
                     .font(.system(size: 11, weight: .medium)).lineLimit(1)
-                Text(model.style.template == .colorWalk ? "一张照片，一种色调 · 可修改主色与文字盖章" : (model.style.template.isPalette ? "主色来自当前照片 · 可在画框样式中调整" : (model.isDemo ? "程序绘制示例 · 拍摄参数为演示值，可自由修改" : "拖入照片以添加 · 点击左侧列表切换")))
+                Text(model.style.template == .colorWalk ? "照片色调 · 可选纯色或横向主色条纹，搭配文字盖章" : (model.style.template.isPalette ? "主色来自当前照片 · 可在画框样式中调整" : (model.isDemo ? "程序绘制示例 · 拍摄参数为演示值，可自由修改" : "拖入照片以添加 · 点击左侧列表切换")))
                     .font(.system(size: 10)).foregroundStyle(muted)
             }.padding(.top, 10).padding(.bottom, 21)
         }
@@ -283,8 +309,10 @@ struct StudioView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 21) {
                         if model.inspectorTab == 0 { metadataEditor }
+                        else if model.style.template.isPrint { printEditor }
                         else if model.style.template == .colorWalk { colorWalkEditor }
                         else if model.style.template == .tickets { ticketEditor }
+                        else if model.style.template == .walkTicket { walkTicketEditor }
                         else if model.style.template == .postageFrame { postageEditor }
                         else if model.style.template == .classicFrame { classicEditor }
                         else if model.style.template.isPalette { paletteEditor }
@@ -372,7 +400,9 @@ struct StudioView: View {
     }
 
     @ViewBuilder private var metadataEditor: some View {
-        if model.style.template == .tickets { ticketContentEditor }
+        if model.style.template.isPrint { printContentEditor }
+        else if model.style.template == .walkTicket { walkTicketContentEditor }
+        else if model.style.template == .tickets { ticketContentEditor }
         else if model.style.template == .colorWalk { colorWalkStampEditor }
         else if model.style.template == .classicFrame { classicMetadataEditor }
         else if model.style.template == .postageFrame {
@@ -445,10 +475,16 @@ struct StudioView: View {
             ? "共用经典版式，每张照片分别识别品牌、型号与拍摄参数；缺少的信息留空。"
             : "手动选择的品牌共用于整批照片，型号、拍摄参数与日期按照片分别读取。"
         case .tickets: return "共用票券标题、副标题、邮戳或条码；拍摄日期按各张照片读取，自定义日期整批共用。"
+        case .walkTicket: return "共用横向票根与文案，每张照片分别取色和读取日期；手动色卡沿用各张照片的编辑。"
         case .postageFrame: return "共用邮票样式和地点；拍摄日期按每张照片分别读取，自定义日期则整批共用。"
-        case .colorWalk: return "共用盖章文字和版式，每张照片分别取色；手动颜色和拍摄时间按各张照片保留。"
+        case .colorWalk: return "共用背景模式、盖章和版式，每张照片分别提取纯色或条纹；手动颜色与拍摄时间按照片保留。"
         case .colorCircles, .colorSquares: return "沿用当前色卡样式与落款，每张照片独立提取主色。"
         case .softFrame: return "沿用当前画框、落款和 Logo，保留每张照片的拍摄参数。"
+        case .film35: return "共用胶片标签、编号和版式，日期与拍摄参数按各张照片读取；编号为手填，整批共用。"
+        case .gallery, .instant, .tornPaper: return "共用文案、相纸和落款；拍摄日期逐张读取，自定义日期整批共用，保留完整照片。"
+        case .cinema: return "共用字幕、场次标记和幕边，保留各张照片的完整构图；个人落款可选择显示。"
+        case .receipt: return "共用小票文案和纸面，各张照片分别读取拍摄日期和相机信息；编号为手填，整批共用。"
+        case .editorial: return "共用杂志标题和版式，拍摄日期与自动强调色逐张读取；自定义颜色整批共用。"
         }
     }
 
@@ -534,6 +570,308 @@ struct StudioView: View {
             slider("拍摄信息字号", value: $model.style.classicInfoScale, range: 0.5...2,
                 display: String(format: "%.0f%%", model.style.classicInfoScale * 100), defaultValue: defaults.classicInfoScale)
             Button("恢复经典默认版式") { model.resetClassicStyle() }.buttonStyle(.plain).foregroundStyle(accent).font(.system(size: 10))
+        }.font(.system(size: 11)).toggleStyle(.switch).controlSize(.mini)
+    }
+
+    private var printEditor: some View {
+        VStack(alignment: .leading, spacing: 17) {
+            printContentEditor
+            Divider()
+            sectionTitle("纸面与版式", caption: "PAPER & LAYOUT")
+            Text("保留完整照片。双击滑块数值可恢复该项默认值。")
+                .font(.system(size: 9)).foregroundStyle(muted)
+            printLayoutEditor
+            Button("恢复此模板版式") { model.resetPrintStyle() }
+                .buttonStyle(.plain).foregroundStyle(accent)
+        }.font(.system(size: 11)).toggleStyle(.switch).controlSize(.mini)
+    }
+
+    private var printContentEditor: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle(model.style.template.title, caption: "PRINT COLLECTION")
+            printSpecificContent
+            Divider()
+            labeledField("个人落款", placeholder: "你的名字 / 摄影签名 · 选填", text: $model.style.signature)
+            slider("落款字号", value: $model.style.signatureScale, range: 0.5...2,
+                display: String(format: "%.0f%%", model.style.signatureScale * 100), defaultValue: FrameStyle().signatureScale)
+            SignatureFontPicker(title: "中文字体", selection: $model.style.signatureChineseFont, chinese: true)
+            SignatureFontPicker(title: "英文字体", selection: $model.style.signatureEnglishFont, chinese: false)
+            Text("落款与中英文字体沿用公共设置；各模板的标题字体可单独选择。")
+                .font(.system(size: 9)).lineSpacing(3).foregroundStyle(muted)
+        }.font(.system(size: 11)).toggleStyle(.switch).controlSize(.mini)
+    }
+
+    @ViewBuilder private var printSpecificContent: some View {
+        switch model.style.template {
+        case .film35:
+            labeledField("胶片标签", placeholder: "FILM", text: $model.style.film35.label)
+            labeledField("画面编号", placeholder: "01", text: $model.style.film35.number)
+            Text("标签与编号为装饰文案，整批共用；边字使用等宽字体。")
+                .font(.system(size: 9)).foregroundStyle(muted)
+            printDateEditor($model.style.film35.dateMode, custom: $model.style.film35.customDate)
+            Toggle("显示拍摄参数", isOn: $model.style.film35.showParameters)
+            if model.style.film35.showParameters {
+                labeledField("焦距 mm", placeholder: "35", text: $model.metadata.focalLength)
+                labeledField("光圈 f/", placeholder: "2.8", text: $model.metadata.aperture)
+                labeledField("快门", placeholder: "1/125", text: $model.metadata.shutter)
+                labeledField("ISO", placeholder: "200", text: $model.metadata.iso)
+            }
+            Toggle("显示个人落款", isOn: $model.style.film35.showSignature)
+        case .gallery:
+            labeledField("作品名称", placeholder: "作品名 · 选填", text: $model.style.gallery.title)
+            labeledField("作品说明", placeholder: "系列 / 地点 · 选填", text: $model.style.gallery.subtitle)
+            SignatureFontPicker(title: "作品名字体", selection: $model.style.gallery.titleFont, chinese: false)
+            printDateEditor($model.style.gallery.dateMode, custom: $model.style.gallery.customDate)
+            Toggle("显示个人落款", isOn: $model.style.gallery.showSignature)
+        case .editorial:
+            labeledField("杂志标题", placeholder: "WANDER / 城市名", text: $model.style.editorial.title)
+            labeledField("副标题", placeholder: "旅行影像日志", text: $model.style.editorial.subtitle)
+            labeledField("期号", placeholder: "VOL. 01", text: $model.style.editorial.edition)
+            labeledField("旅途短句", placeholder: "一句旅途笔记 · 选填", text: $model.style.editorial.notes)
+            SignatureFontPicker(title: "杂志标题字体", selection: $model.style.editorial.titleFont, chinese: false)
+            printDateEditor($model.style.editorial.dateMode, custom: $model.style.editorial.customDate)
+            Toggle("显示个人落款", isOn: $model.style.editorial.showSignature)
+        case .instant:
+            labeledField("相纸短句", placeholder: "Keep this moment.", text: $model.style.instant.caption)
+            SignatureFontPicker(title: "短句英文字体", selection: $model.style.instant.captionFont, chinese: false)
+            printDateEditor($model.style.instant.dateMode, custom: $model.style.instant.customDate)
+            Toggle("显示个人落款", isOn: $model.style.instant.showSignature)
+        case .cinema:
+            labeledField("主字幕", placeholder: "把日常，留给时间。", text: $model.style.cinema.subtitle)
+            labeledField("第二行字幕", placeholder: "Let the ordinary become a scene.", text: $model.style.cinema.translation)
+            labeledField("场次标记", placeholder: "SCENE 01 · 选填", text: $model.style.cinema.scene)
+            Text("字幕放在黑色幕边，保留完整照片，不自动裁成电影比例。")
+                .font(.system(size: 9)).foregroundStyle(muted)
+            Toggle("显示个人落款", isOn: $model.style.cinema.showSignature)
+        case .receipt:
+            labeledField("小票标题", placeholder: "MEMORY RECEIPT", text: $model.style.receipt.title)
+            labeledField("地点 / 店名", placeholder: "一个值得记住的地方 · 选填", text: $model.style.receipt.place)
+            labeledField("小票编号", placeholder: "001", text: $model.style.receipt.number)
+            labeledField("票尾短句", placeholder: "THANK YOU FOR THIS MOMENT", text: $model.style.receipt.note)
+            printDateEditor($model.style.receipt.dateMode, custom: $model.style.receipt.customDate)
+            Toggle("显示拍摄参数", isOn: $model.style.receipt.showParameters)
+            Toggle("显示个人落款", isOn: $model.style.receipt.showSignature)
+        case .tornPaper:
+            labeledField("纸上短句", placeholder: "A quiet moment.", text: $model.style.tornPaper.caption)
+            SignatureFontPicker(title: "短句英文字体", selection: $model.style.tornPaper.captionFont, chinese: false)
+            printDateEditor($model.style.tornPaper.dateMode, custom: $model.style.tornPaper.customDate)
+            Toggle("显示个人落款", isOn: $model.style.tornPaper.showSignature)
+        default: EmptyView()
+        }
+    }
+
+    private func printDateEditor(_ mode: Binding<TicketDateMode>, custom: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Picker("日期", selection: mode) {
+                ForEach(TicketDateMode.allCases) { Text($0.rawValue).tag($0) }
+            }.accessibilityIdentifier("print-date-mode")
+            if mode.wrappedValue == .custom {
+                labeledField("自定义日期", placeholder: "22 OCT 2026", text: custom)
+            } else if mode.wrappedValue == .captureDate {
+                let value = TicketDateMode.captureDate.text(metadata: model.metadata, custom: "")
+                Text(value.isEmpty ? "照片没有有效拍摄日期，将留空。" : "从照片读取：\(value)")
+                    .font(.system(size: 9)).foregroundStyle(muted)
+            }
+        }
+    }
+
+    @ViewBuilder private var printLayoutEditor: some View {
+        switch model.style.template {
+        case .film35:
+            Toggle("显示胶片齿孔", isOn: $model.style.film35.showSprockets)
+            printPercentSlider("胶片侧边", value: $model.style.film35.margin, range: 0.035...0.12, defaultValue: Film35Style().margin)
+            printPercentSlider("上下片边", value: $model.style.film35.rail, range: 0.065...0.14, defaultValue: Film35Style().rail)
+            printPercentSlider("胶片边字", value: $model.style.film35.textScale, range: 0.65...1.6, defaultValue: Film35Style().textScale)
+        case .gallery:
+            printPaperPicker($model.style.gallery.paper)
+            Toggle("显示细内框", isOn: $model.style.gallery.showOutline)
+            printPercentSlider("画廊留白", value: $model.style.gallery.margin, range: 0.045...0.18, defaultValue: GalleryStyle().margin)
+            Text("竖版照片两侧额外增加 2% 留白。")
+                .font(.system(size: 9)).foregroundStyle(muted)
+            printPercentSlider("作品落款区", value: $model.style.gallery.footer, range: 0.12...0.26, defaultValue: GalleryStyle().footer)
+            printPercentSlider("画廊文字", value: $model.style.gallery.textScale, range: 0.65...1.6, defaultValue: GalleryStyle().textScale)
+        case .editorial:
+            printPaperPicker($model.style.editorial.paper)
+            Toggle("显示强调色细线", isOn: $model.style.editorial.showAccent)
+            if model.style.editorial.showAccent {
+                Picker("强调色", selection: $model.style.editorial.accent) {
+                    ForEach(EditorialAccent.allCases) { Text($0.rawValue).tag($0) }
+                }
+                if model.style.editorial.accent == .custom {
+                    ColorPicker("自定义强调色", selection: editorialAccentBinding, supportsOpacity: false)
+                    Text(model.style.editorial.accentHex).font(.system(size: 10, design: .monospaced)).foregroundStyle(muted)
+                }
+                Text("自动强调色取自各张照片；自定义颜色共用于整批照片。")
+                    .font(.system(size: 9)).foregroundStyle(muted)
+            }
+            printPercentSlider("杂志侧边", value: $model.style.editorial.margin, range: 0.025...0.12, defaultValue: EditorialStyle().margin)
+            printPercentSlider("标题区高度", value: $model.style.editorial.header, range: 0.17...0.32, defaultValue: EditorialStyle().header)
+            printPercentSlider("杂志底栏", value: $model.style.editorial.footer, range: 0.09...0.20, defaultValue: EditorialStyle().footer)
+            printPercentSlider("杂志文字", value: $model.style.editorial.textScale, range: 0.65...1.6, defaultValue: EditorialStyle().textScale)
+        case .instant:
+            printPaperPicker($model.style.instant.paper)
+            printPercentSlider("相纸外留白", value: $model.style.instant.margin, range: 0.035...0.12, defaultValue: InstantStyle().margin)
+            printPercentSlider("相纸白边", value: $model.style.instant.border, range: 0.025...0.075, defaultValue: InstantStyle().border)
+            printPercentSlider("相纸底边", value: $model.style.instant.footer, range: 0.10...0.24, defaultValue: InstantStyle().footer)
+            printPercentSlider("相纸文字", value: $model.style.instant.textScale, range: 0.65...1.6, defaultValue: InstantStyle().textScale)
+            printPercentSlider("相纸阴影", value: $model.style.instant.shadow, range: 0...0.35, defaultValue: InstantStyle().shadow)
+        case .cinema:
+            Picker("字幕颜色", selection: $model.style.cinema.ink) {
+                ForEach(CinemaInk.allCases) { Text($0.rawValue).tag($0) }
+            }
+            printPercentSlider("上幕边", value: $model.style.cinema.top, range: 0.025...0.14, defaultValue: CinemaStyle().top)
+            printPercentSlider("字幕幕边", value: $model.style.cinema.bottom, range: 0.12...0.30, defaultValue: CinemaStyle().bottom)
+            printPercentSlider("字幕上下位置", value: $model.style.cinema.position, range: 0...1, defaultValue: CinemaStyle().position)
+            printPercentSlider("字幕字号", value: $model.style.cinema.textScale, range: 0.65...1.6, defaultValue: CinemaStyle().textScale)
+        case .receipt:
+            printPaperPicker($model.style.receipt.paper)
+            printPercentSlider("小票外留白", value: $model.style.receipt.margin, range: 0.06...0.18, defaultValue: ReceiptStyle().margin)
+            printPercentSlider("票尾高度", value: $model.style.receipt.footer, range: 0.22...0.38, defaultValue: ReceiptStyle().footer)
+            printPercentSlider("小票文字", value: $model.style.receipt.textScale, range: 0.65...1.6, defaultValue: ReceiptStyle().textScale)
+        case .tornPaper:
+            printPaperPicker($model.style.tornPaper.paper)
+            printPercentSlider("撕边外留白", value: $model.style.tornPaper.margin, range: 0.035...0.14, defaultValue: TornPaperStyle().margin)
+            printPercentSlider("撕边白边", value: $model.style.tornPaper.border, range: 0.025...0.08, defaultValue: TornPaperStyle().border)
+            printPercentSlider("纸上落款区", value: $model.style.tornPaper.footer, range: 0.09...0.22, defaultValue: TornPaperStyle().footer)
+            printPercentSlider("撕边起伏", value: $model.style.tornPaper.roughness, range: 0.001...0.008, defaultValue: TornPaperStyle().roughness)
+            printPercentSlider("纸面阴影", value: $model.style.tornPaper.shadow, range: 0...0.35, defaultValue: TornPaperStyle().shadow)
+            printPercentSlider("纸上文字", value: $model.style.tornPaper.textScale, range: 0.65...1.6, defaultValue: TornPaperStyle().textScale)
+        default: EmptyView()
+        }
+    }
+
+    private func printPaperPicker(_ binding: Binding<PrintPaper>) -> some View {
+        Picker("纸面颜色", selection: binding) {
+            ForEach(PrintPaper.allCases) { Text($0.rawValue).tag($0) }
+        }.accessibilityIdentifier("print-paper")
+    }
+
+    private func printPercentSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, defaultValue: Double) -> some View {
+        slider(title, value: value, range: range, display: String(format: "%.1f%%", value.wrappedValue * 100), defaultValue: defaultValue)
+    }
+
+    private var editorialAccentBinding: Binding<Color> {
+        Binding(get: { Color(nsColor: (PaletteColor(hex: model.style.editorial.accentHex) ?? PaletteColor(hex: "#8B7565")!).color) },
+            set: { value in
+                guard let c = NSColor(value).usingColorSpace(.sRGB) else { return }
+                func byte(_ v: CGFloat) -> Int { Int((min(1, max(0, v)) * 255).rounded()) }
+                model.style.editorial.accentHex = String(format: "#%02X%02X%02X", byte(c.redComponent), byte(c.greenComponent), byte(c.blueComponent))
+            })
+    }
+
+    private var walkTicketContentEditor: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle("漫步票根", caption: "ROUTE WALK")
+            labeledField("顶部短句 · 选填", placeholder: "「漫步日志」", text: $model.style.walkTicket.heading)
+            labeledField("大标题", placeholder: "COLOR WALK / 城市名称", text: $model.style.walkTicket.title)
+                .accessibilityIdentifier("walkticket-title")
+            labeledField("副标题", placeholder: "漫步日志 / 地点", text: $model.style.walkTicket.subtitle)
+                .accessibilityIdentifier("walkticket-subtitle")
+            Picker("票根日期", selection: $model.style.walkTicket.dateMode) {
+                ForEach(TicketDateMode.allCases) { Text($0.rawValue).tag($0) }
+            }.controlSize(.small)
+            if model.style.walkTicket.dateMode == .custom {
+                labeledField("自定义日期", placeholder: "10.22 / 22 OCT 2026", text: $model.style.walkTicket.customDate)
+            } else if model.style.walkTicket.dateMode == .captureDate {
+                let date = TicketDateMode.captureDate.text(metadata: model.metadata, custom: "")
+                Text(date.isEmpty ? "照片没有有效拍摄日期，日期留空。" : "从照片读取：" + date)
+                    .font(.system(size: 9)).foregroundStyle(muted)
+            }
+            labeledField("备注 / 坐标 · 手填", placeholder: "旅途笔记，或自己填写坐标", text: $model.style.walkTicket.notes)
+            Text("地点与坐标只使用你填写的文字，不读取 GPS 或猜测照片位置。")
+                .font(.system(size: 9)).lineSpacing(3).foregroundStyle(muted)
+            SignatureFontPicker(title: "大标题字体", selection: $model.style.walkTicket.titleFont, chinese: false)
+            SignatureFontPicker(title: "中文字体", selection: $model.style.signatureChineseFont, chinese: true)
+            SignatureFontPicker(title: "英文字体", selection: $model.style.signatureEnglishFont, chinese: false)
+        }.font(.system(size: 11))
+    }
+
+    private var walkTicketPaperBinding: Binding<Color> {
+        Binding(get: { Color(nsColor: model.style.walkTicket.paperColor(photo: model.photo)) }, set: { value in
+            guard let color = NSColor(value).usingColorSpace(.sRGB) else { return }
+            func byte(_ value: CGFloat) -> UInt8 { UInt8((min(1, max(0, value)) * 255).rounded()) }
+            var updated = model.style.walkTicket
+            updated.customHex = PaletteColor(red: byte(color.redComponent), green: byte(color.greenComponent), blue: byte(color.blueComponent)).hex
+            updated.theme = .custom
+            model.style.walkTicket = updated
+        })
+    }
+
+    private var walkTicketPaletteEditor: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("主色色卡", caption: "COLOR CARD")
+            Toggle("显示色卡与右侧色带", isOn: $model.style.walkTicket.showPalette)
+            if model.style.walkTicket.showPalette {
+                HStack {
+                    Text("自动取色数量")
+                    Spacer()
+                    Picker("漫步票根色块数量", selection: $model.style.walkTicket.paletteCount) {
+                        ForEach(2...8, id: \.self) { Text("\($0) 色").tag($0) }
+                    }.labelsHidden().frame(width: 100).disabled(model.hasManualPalette)
+                }
+                Picker("颜色排序", selection: $model.style.paletteOrder) {
+                    ForEach(PaletteOrder.allCases) { Text($0.rawValue).tag($0) }
+                }.disabled(model.hasManualPalette)
+                if let photoID = model.selectedID {
+                    ForEach(Array(model.paletteSwatches.enumerated()), id: \.element.id) { index, swatch in
+                        paletteColorRow(swatch, number: index + 1, photoID: photoID)
+                    }
+                }
+                Button("恢复自动取色") { model.restoreAutomaticPalette() }
+                    .buttonStyle(.plain).foregroundStyle(accent).disabled(!model.hasManualPalette)
+                Toggle("显示色块 HEX", isOn: $model.style.walkTicket.showHex)
+                Text(model.hasManualPalette ? "手动改色与删除按照片保存，与圆形、方形色卡共用。" : "每张照片独立取色；可点选改色、输入 HEX 或删除色块。")
+                    .font(.system(size: 9)).lineSpacing(3).foregroundStyle(muted)
+            }
+        }.font(.system(size: 11)).toggleStyle(.switch).controlSize(.mini)
+    }
+
+    private var walkTicketEditor: some View {
+        let defaults = WalkTicketStyle()
+        return VStack(alignment: .leading, spacing: 16) {
+            walkTicketContentEditor
+            Divider()
+            sectionTitle("票面与照片", caption: "PAPER & PHOTO")
+            Picker("票面配色", selection: $model.style.walkTicket.theme) {
+                ForEach(WalkTicketTheme.allCases) { Text($0.rawValue).tag($0) }
+            }.accessibilityIdentifier("walkticket-theme")
+            ColorPicker("票面颜色", selection: walkTicketPaperBinding, supportsOpacity: false)
+            if model.style.walkTicket.theme == .custom {
+                labeledField("票面 HEX", placeholder: "#494644", text: $model.style.walkTicket.customHex)
+                if PaletteColor(hex: model.style.walkTicket.customHex) == nil {
+                    Text("请输入六位 HEX 色号；未完成时暂用默认深灰。")
+                        .font(.system(size: 9)).foregroundStyle(.red)
+                }
+            }
+            Picker("照片显示", selection: $model.style.walkTicket.photoMode) {
+                ForEach(WalkTicketPhotoMode.allCases) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented).accessibilityIdentifier("walkticket-photo-mode")
+            Text("完整照片保留全部构图；填满裁切将照片居中填满左侧窗口。文字自动匹配票面明暗。")
+                .font(.system(size: 9)).lineSpacing(3).foregroundStyle(muted)
+            Divider()
+            walkTicketPaletteEditor
+            Divider()
+            sectionTitle("右侧票根", caption: "ADMIT ONE")
+            labeledField("竖排票根文字", placeholder: "ADMIT ONE · NO. 02", text: $model.style.walkTicket.admission)
+            labeledField("右下角文字", placeholder: "ROUTE WALK", text: $model.style.walkTicket.stubCaption)
+            Toggle("显示装饰条码", isOn: $model.style.walkTicket.showBarcode)
+                .accessibilityIdentifier("walkticket-decoration")
+            Text("同色线条与票根文字呼应，作为装饰，不编码或存储内容。")
+                .font(.system(size: 9)).foregroundStyle(muted)
+            Divider()
+            Text("双击数值，恢复该项默认值").font(.system(size: 9)).foregroundStyle(muted)
+            slider("票根留白", value: $model.style.walkTicket.margin, range: 0.05...0.16,
+                display: String(format: "%.1f%%", model.style.walkTicket.margin * 100), defaultValue: defaults.margin)
+            slider("票面高宽比", value: $model.style.walkTicket.aspect, range: 0.44...0.64,
+                display: String(format: "%.0f%%", model.style.walkTicket.aspect * 100), defaultValue: defaults.aspect)
+            slider("票根圆角", value: $model.style.walkTicket.corner, range: 0...0.045,
+                display: String(format: "%.1f%%", model.style.walkTicket.corner * 100), defaultValue: defaults.corner)
+            slider("票根字号", value: $model.style.walkTicket.textScale, range: 0.5...2,
+                display: String(format: "%.0f%%", model.style.walkTicket.textScale * 100), defaultValue: defaults.textScale)
+            slider("票根阴影", value: $model.style.walkTicket.shadow, range: 0...1,
+                display: String(format: "%.0f%%", model.style.walkTicket.shadow * 100), defaultValue: defaults.shadow)
+            Button("恢复漫步票根版式") { model.resetWalkTicketStyle() }
+                .buttonStyle(.plain).foregroundStyle(accent)
         }.font(.system(size: 11)).toggleStyle(.switch).controlSize(.mini)
     }
 
@@ -699,26 +1037,33 @@ struct StudioView: View {
     private var colorWalkEditor: some View {
         let defaults = FrameStyle()
         return VStack(alignment: .leading, spacing: 16) {
-            sectionTitle("Color Walk", caption: "ONE PHOTO · ONE COLOR")
-            Text("综合颜色占比、饱和度与明暗，选取照片的一种代表色。可手动调整，按照片分别保存。")
-                .font(.system(size: 10)).lineSpacing(3).foregroundStyle(muted)
-            if let photoID = model.selectedID, let color = model.colorWalkColor {
-                HStack(spacing: 10) {
-                    Button { model.chooseColorWalkColor(photoID: photoID) } label: {
-                        RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: color.color)).frame(width: 42, height: 42)
-                            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(ink.opacity(0.14), lineWidth: 0.7))
-                    }.buttonStyle(.plain).accessibilityLabel("修改 Color Walk 主色").accessibilityValue(color.hex)
-                        .accessibilityIdentifier("colorwalk-color").help("点击修改颜色")
-                    TextField("#RRGGBB", text: Binding(get: { model.colorWalkHex }, set: { model.setColorWalkHex($0, photoID: photoID) }))
-                        .font(.system(size: 12, design: .monospaced)).textFieldStyle(.roundedBorder)
-                        .onSubmit { model.commitColorWalkHex(photoID: photoID) }
-                        .accessibilityLabel("Color Walk HEX 色号").accessibilityIdentifier("colorwalk-hex")
-                    Text(model.hasManualColorWalkColor ? "手动" : "自动").font(.system(size: 9)).foregroundStyle(muted)
-                }.disabled(model.isLoading)
+            sectionTitle("Color Walk", caption: "COLOR & STRIPES")
+            Picker("背景样式", selection: Binding(get: { model.style.colorWalkBackground }, set: { model.selectColorWalkBackground($0) })) {
+                ForEach(ColorWalkBackground.allCases) { Text($0.rawValue).tag($0) }
+            }.accessibilityIdentifier("colorwalk-background")
+            if model.style.colorWalkBackground == .horizontalStripes {
+                colorWalkStripeEditor
+            } else {
+                Text("综合颜色占比、饱和度与明暗，选取照片的一种代表色。可手动调整，按照片分别保存。")
+                    .font(.system(size: 10)).lineSpacing(3).foregroundStyle(muted)
+                if let photoID = model.selectedID, let color = model.colorWalkColor {
+                    HStack(spacing: 10) {
+                        Button { model.chooseColorWalkColor(photoID: photoID) } label: {
+                            RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: color.color)).frame(width: 42, height: 42)
+                                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(ink.opacity(0.14), lineWidth: 0.7))
+                        }.buttonStyle(.plain).accessibilityLabel("修改 Color Walk 主色").accessibilityValue(color.hex)
+                            .accessibilityIdentifier("colorwalk-color").help("点击修改颜色")
+                        TextField("#RRGGBB", text: Binding(get: { model.colorWalkHex }, set: { model.setColorWalkHex($0, photoID: photoID) }))
+                            .font(.system(size: 12, design: .monospaced)).textFieldStyle(.roundedBorder)
+                            .onSubmit { model.commitColorWalkHex(photoID: photoID) }
+                            .accessibilityLabel("Color Walk HEX 色号").accessibilityIdentifier("colorwalk-hex")
+                        Text(model.hasManualColorWalkColor ? "手动" : "自动").font(.system(size: 9)).foregroundStyle(muted)
+                    }.disabled(model.isLoading)
+                }
+                Button("恢复自动主色") { model.restoreAutomaticColorWalkColor() }
+                    .buttonStyle(.plain).foregroundStyle(accent).font(.system(size: 10))
+                    .disabled(!model.hasManualColorWalkColor || model.isLoading)
             }
-            Button("恢复自动主色") { model.restoreAutomaticColorWalkColor() }
-                .buttonStyle(.plain).foregroundStyle(accent).font(.system(size: 10))
-                .disabled(!model.hasManualColorWalkColor || model.isLoading)
             Divider()
             colorWalkStampEditor
             Divider()
@@ -737,6 +1082,33 @@ struct StudioView: View {
             Button("恢复 Color Walk 默认版式") { model.resetColorWalkStyle() }
                 .buttonStyle(.plain).foregroundStyle(accent).font(.system(size: 10))
         }.font(.system(size: 11))
+    }
+
+    private var colorWalkStripeEditor: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("多种主色按列表顺序从上到下等高拼接，每条横贯整个色面。")
+                .font(.system(size: 10)).lineSpacing(3).foregroundStyle(muted)
+            Picker("自动条纹数量", selection: $model.style.colorWalkStripeCount) {
+                ForEach(2...8, id: \.self) { Text("\($0) 色").tag($0) }
+            }.disabled(model.hasManualPalette).accessibilityIdentifier("colorwalk-stripe-count")
+            Picker("条纹排序", selection: $model.style.paletteOrder) {
+                ForEach(PaletteOrder.allCases) { Text($0.rawValue).tag($0) }
+            }.disabled(model.hasManualPalette)
+            Text("当前 \(model.paletteColors.count) 种颜色").font(.system(size: 10, weight: .medium))
+            if let photoID = model.selectedID {
+                ForEach(Array(model.paletteSwatches.enumerated()), id: \.element.id) { index, swatch in
+                    paletteColorRow(swatch, number: index + 1, photoID: photoID)
+                }
+            }
+            Button("恢复条纹自动取色") { model.restoreAutomaticPalette() }
+                .buttonStyle(.plain).foregroundStyle(accent).disabled(!model.hasManualPalette || model.isLoading)
+            Text(model.paletteColors.isEmpty && model.hasManualPalette
+                ? "已删除全部条纹，色面留白；可恢复自动取色。"
+                : "支持逐个改色、输入 HEX 和删除；与色卡模板共用每张照片的手动色卡。纯色主色独立保留。")
+                .font(.system(size: 9)).lineSpacing(3).foregroundStyle(muted)
+            Text("文字可选「自动对比」，在深浅条纹上分别使用黑白文字。")
+                .font(.system(size: 9)).foregroundStyle(muted)
+        }.controlSize(.small)
     }
 
     private var paletteEditor: some View {

@@ -17,6 +17,16 @@ public final class FrameRenderer {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw FrameError.rendering }
         context.interpolationQuality = .high
         let canvas = CGRect(x: 0, y: 0, width: layout.width, height: layout.height)
+        if style.template.isKeepsake {
+            return try renderKeepsake(photo: photo, metadata: metadata, style: style, width: width, context: context, preview: preview)
+        }
+        if style.template.isPrint {
+            return try renderPrint(photo: photo, metadata: metadata, style: style, width: width, context: context, preview: preview)
+        }
+        if style.template == .walkTicket {
+            return try renderWalkTicket(photo: photo, metadata: metadata, style: style, width: width, context: context,
+                preview: preview, colors: palette ?? photo.palette.colors(count: style.activePaletteCount, order: style.paletteOrder))
+        }
         if style.template == .tickets {
             return try renderTicket(photo: photo, metadata: metadata, style: style, width: width, context: context, preview: preview)
         }
@@ -25,7 +35,7 @@ public final class FrameRenderer {
         }
         if style.template == .colorWalk {
             return try renderColorWalk(photo: photo, metadata: metadata, style: style, layout: layout,
-                context: context, preview: preview, color: colorWalkColor ?? photo.palette.colorWalkColor())
+                context: context, preview: preview, color: colorWalkColor ?? photo.palette.colorWalkColor(), palette: palette)
         }
         if style.template.isPalette {
             return try renderPalette(photo: photo, style: style, layout: layout, context: context,
@@ -176,19 +186,33 @@ public final class FrameRenderer {
     }
 
     private func renderColorWalk(photo: PhotoDocument, metadata: PhotoMetadata, style: FrameStyle, layout: FrameLayout,
-                                 context: CGContext, preview: Bool, color: PaletteColor) throws -> CGImage {
+                                 context: CGContext, preview: Bool, color: PaletteColor, palette: [PaletteColor]?) throws -> CGImage {
         let w = CGFloat(layout.width)
-        context.setFillColor(color.color.cgColor)
+        let striped = style.colorWalkBackground == .horizontalStripes
+        let fallback = striped ? PaletteColor(hex: "#FFFFFF")! : color
+        let header = CGRect(x: 0, y: layout.photoRect.maxY, width: w, height: CGFloat(layout.height) - layout.photoRect.maxY)
+        let colors = striped ? Array((palette ?? photo.palette.colors(count: style.colorWalkStripeCount, order: style.paletteOrder)).prefix(8)) : []
+        // Use whole-pixel interior boundaries. The final band meets the photograph exactly.
+        let bands: [(rect: CGRect, color: PaletteColor)] = colors.enumerated().map { index, color in
+            let top = (header.height * CGFloat(index) / CGFloat(colors.count)).rounded()
+            let bottom = index == colors.count - 1 ? header.height
+                : (header.height * CGFloat(index + 1) / CGFloat(colors.count)).rounded()
+            return (CGRect(x: 0, y: header.maxY - bottom, width: w, height: bottom - top), color)
+        }
+        context.setFillColor(fallback.color.cgColor)
         context.fill(CGRect(x: 0, y: 0, width: w, height: CGFloat(layout.height)))
+        context.saveGState(); context.setShouldAntialias(false)
+        for band in bands { context.setFillColor(band.color.color.cgColor); context.fill(band.rect) }
+        context.restoreGState()
         context.setFillColor(NSColor.white.cgColor)
         context.fill(layout.photoRect)
         context.draw(preview ? photo.preview : photo.image, in: layout.photoRect)
         if style.colorWalkShowStamp {
-            let ink = style.colorWalkInk.color(on: color)
+            let ink = style.colorWalkInk.color(on: fallback)
             let scale = CGFloat(min(2, max(0.5, style.colorWalkTextScale)))
-            func line(_ text: String, size: CGFloat, bold: Bool) -> CTLine {
+            func line(_ text: String, size: CGFloat, bold: Bool, color: NSColor) -> CTLine {
                 let string = SignatureTypography.attributedString(text.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines),
-                    size: size, chineseFamily: style.signatureChineseFont, englishFamily: style.signatureEnglishFont, color: ink)
+                    size: size, chineseFamily: style.signatureChineseFont, englishFamily: style.signatureEnglishFont, color: color)
                 let attributed = NSMutableAttributedString(attributedString: string)
                 if bold {
                     string.enumerateAttribute(.font, in: NSRange(location: 0, length: string.length)) { value, range, _ in
@@ -199,8 +223,9 @@ public final class FrameRenderer {
                 }
                 return CTLineCreateWithAttributedString(attributed)
             }
-            let title = line(style.colorWalkStamp, size: w * 0.046 * scale, bold: true)
-            let detail = line(style.colorWalkDetail.text(metadata: metadata, custom: style.colorWalkCustomDetail), size: w * 0.036 * scale, bold: false)
+            let detailText = style.colorWalkDetail.text(metadata: metadata, custom: style.colorWalkCustomDetail)
+            let title = line(style.colorWalkStamp, size: w * 0.046 * scale, bold: true, color: ink)
+            let detail = line(detailText, size: w * 0.036 * scale, bold: false, color: ink)
             let titleH = CTLineGetBoundsWithOptions(title, [.useGlyphPathBounds]).height
             let detailH = CTLineGetBoundsWithOptions(detail, [.useGlyphPathBounds]).height
             let gap: CGFloat = titleH > 0 && detailH > 0 ? w * 0.032 * scale : 0
@@ -212,12 +237,21 @@ public final class FrameRenderer {
             let halfHeight = totalH * fit / 2
             let requestedCenter = headerH * CGFloat(1 - min(1, max(0, style.colorWalkTextPosition)))
             let center = min(headerH - padding - halfHeight, max(padding + halfHeight, requestedCenter))
-            context.saveGState()
-            context.translateBy(x: w / 2, y: layout.photoRect.maxY + center)
-            context.scaleBy(x: fit, y: fit)
-            if titleH > 0 { draw(title, in: context, x: -lineWidth(title) / 2, centerY: totalH / 2 - titleH / 2) }
-            if detailH > 0 { draw(detail, in: context, x: -lineWidth(detail) / 2, centerY: -totalH / 2 + detailH / 2) }
-            context.restoreGState()
+            // In automatic mode, each part of a glyph follows the stripe beneath it.
+            // This also handles a stamp centered exactly across a dark/light boundary.
+            let inkBands = striped && style.colorWalkInk == .automatic && !bands.isEmpty
+                ? bands : [(rect: header, color: fallback)]
+            for band in inkBands {
+                let bandInk = style.colorWalkInk.color(on: band.color)
+                let titleLine = line(style.colorWalkStamp, size: w * 0.046 * scale, bold: true, color: bandInk)
+                let detailLine = line(detailText, size: w * 0.036 * scale, bold: false, color: bandInk)
+                context.saveGState(); context.clip(to: band.rect)
+                context.translateBy(x: w / 2, y: layout.photoRect.maxY + center)
+                context.scaleBy(x: fit, y: fit)
+                if titleH > 0 { draw(titleLine, in: context, x: -lineWidth(titleLine) / 2, centerY: totalH / 2 - titleH / 2) }
+                if detailH > 0 { draw(detailLine, in: context, x: -lineWidth(detailLine) / 2, centerY: -totalH / 2 + detailH / 2) }
+                context.restoreGState()
+            }
         }
         guard let image = context.makeImage() else { throw FrameError.rendering }
         return image

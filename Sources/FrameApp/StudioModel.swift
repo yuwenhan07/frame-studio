@@ -307,6 +307,11 @@ final class StudioModel: ObservableObject {
         updated.colorWalkShowStamp = defaults.colorWalkShowStamp
         style = updated
     }
+    func selectColorWalkBackground(_ background: ColorWalkBackground) {
+        guard !isExporting else { return }
+        closePaletteColorPanel()
+        style.colorWalkBackground = background
+    }
 
     func paletteHex(for id: UUID) -> String {
         paletteHexDrafts[id] ?? paletteSwatches.first(where: { $0.id == id })?.color.hex ?? ""
@@ -668,6 +673,23 @@ final class StudioModel: ObservableObject {
         }
         style = updated
     }
+    func resetWalkTicketStyle() {
+        style.walkTicket = style.walkTicket.resetLayout()
+    }
+    func resetPrintStyle() {
+        var updated = style
+        switch style.template {
+        case .film35: updated.film35 = updated.film35.resetLayout()
+        case .gallery: updated.gallery = updated.gallery.resetLayout()
+        case .editorial: updated.editorial = updated.editorial.resetLayout()
+        case .instant: updated.instant = updated.instant.resetLayout()
+        case .cinema: updated.cinema = updated.cinema.resetLayout()
+        case .receipt: updated.receipt = updated.receipt.resetLayout()
+        case .tornPaper: updated.tornPaper = updated.tornPaper.resetLayout()
+        default: return
+        }
+        style = updated
+    }
     func resetClassicStyle() {
         let defaults = FrameStyle()
         var updated = style
@@ -718,7 +740,7 @@ final class StudioModel: ObservableObject {
         let ticket = previewTicket
         guard let photo else { return }
         let metadata = metadata, style = style, logo = logo
-        let cachedPalette = paletteSettings?.count == style.paletteCount && paletteSettings?.order == style.paletteOrder
+        let cachedPalette = paletteSettings?.count == style.activePaletteCount && paletteSettings?.order == style.paletteOrder
             ? automaticPalette : nil
         let manualPalette = items.first(where: { $0.id == selectedID })?.paletteOverride
         let manualWalk = items.first(where: { $0.id == selectedID })?.colorWalkOverride
@@ -726,7 +748,7 @@ final class StudioModel: ObservableObject {
         isRendering = true
         let job = DispatchWorkItem { [weak self] in
             let result = autoreleasepool { Result {
-                let automatic = cachedPalette ?? photo.palette.colors(count: style.paletteCount, order: style.paletteOrder)
+                let automatic = cachedPalette ?? photo.palette.colors(count: style.activePaletteCount, order: style.paletteOrder)
                 let colors = manualPalette?.map(\.color) ?? automatic
                 let walk = cachedWalk ?? (style.template == .colorWalk ? photo.palette.colorWalkColor() : nil)
                 let image = try FrameRenderer().render(photo: photo, metadata: metadata, style: style,
@@ -748,7 +770,7 @@ final class StudioModel: ObservableObject {
                         self.paletteSwatches = output.automatic.map { EditablePaletteSwatch(color: $0) }
                         self.paletteHexDrafts.removeAll()
                     }
-                    self.paletteSettings = (style.paletteCount, style.paletteOrder)
+                    self.paletteSettings = (style.activePaletteCount, style.paletteOrder)
                 case .failure(let error): self.errorMessage = error.localizedDescription
                 }
             }

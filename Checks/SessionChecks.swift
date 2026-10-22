@@ -42,6 +42,8 @@ struct SessionChecks {
         try check(model.items.count == 2 && model.metadata.camera == "B edited", "独立进程恢复列表与当前照片编辑")
         try check(model.style.colorWalkTextPosition == 0.67 && model.style.signature == "会话 / Session 🐟"
             && model.format == .png && model.exportSize == .standard, "独立进程恢复样式和导出设置")
+        try check(model.style.colorWalkBackground == .horizontalStripes && model.style.colorWalkStripeCount == 6,
+            "独立进程恢复 Color Walk 条纹模式和独立取色数量")
         try check(model.style.postageVariant == .caption
             && model.style.postagePlace == "Beijing 北京" && model.style.postageDateMode == .custom
             && model.style.postageCustomDate == "2026/10/11" && model.style.postageMargin == 0.14,
@@ -53,6 +55,22 @@ struct SessionChecks {
             && model.style.ticketMark == .barcode && model.style.ticketBarcodeValue == "TICKET-2026"
             && model.style.ticketStampTop == "TRAVEL CLUB" && model.style.ticketFooter == 0.23,
             "独立进程恢复 Tickets 文案、条码、邮戳文字与底栏设置")
+        try check(model.style.walkTicket.title == "BEIJING" && model.style.walkTicket.theme == .orange
+            && model.style.walkTicket.notes == "手填备注" && model.style.walkTicket.paletteCount == 3
+            && model.style.walkTicket.photoMode == .fill && model.style.walkTicket.margin == 0.13,
+            "独立进程恢复漫步票根文案、配色、色卡与照片模式")
+        try check(model.style.film35.label == "LOCAL 35" && model.style.film35.margin == 0.09
+            && !model.style.film35.showSprockets, "独立进程恢复胶片标签、齿孔和版式")
+        try check(model.style.gallery.title == "静" && model.style.gallery.paper == .charcoal
+            && model.style.gallery.footer == 0.22, "独立进程恢复画廊文案、纸色和留白")
+        try check(model.style.editorial.title == "TIANJIN" && model.style.editorial.accent == .custom
+            && model.style.editorial.accentHex == "#305070", "独立进程恢复杂志标题与自定义强调色")
+        try check(model.style.instant.caption == "留住此刻" && model.style.instant.captionFont == "Comic Sans MS"
+            && model.style.instant.border == 0.06, "独立进程恢复 Instant 文案、字体和相纸边框")
+        try check(model.style.cinema.subtitle == "记住今天" && model.style.cinema.bottom == 0.25
+            && model.style.receipt.place == "LOCAL" && model.style.receipt.margin == 0.16
+            && model.style.tornPaper.caption == "Quiet" && model.style.tornPaper.roughness == 0.006,
+            "独立进程恢复 Cinema、Receipt 和 Paper 的文案与版式")
         try check(model.items[0].paletteOverride?.isEmpty == true && model.items[0].colorWalkOverride?.hex == "#4A7B2C"
             && model.batchSelectedCount == 1 && model.hasCustomLogo, "独立进程恢复删空色卡、主色、批量勾选和 Logo")
         try check(model.flushSession(), "独立进程可继续保存恢复后的会话")
@@ -100,6 +118,8 @@ struct SessionChecks {
             first.style.signature = "会话 / Session 🐟"
             first.style.colorWalkTextPosition = 0.67
             first.style.colorWalkHeader = 0.39
+            first.style.colorWalkBackground = .horizontalStripes
+            first.style.colorWalkStripeCount = 6
             first.style.postageVariant = .caption
             first.style.postagePlace = "Beijing 北京"
             first.style.postageDateMode = .custom
@@ -108,6 +128,13 @@ struct SessionChecks {
             first.style.ticketTitle = "Journey"; first.style.ticketSubtitle = "旅途"
             first.style.ticketMark = .barcode; first.style.ticketBarcodeValue = "TICKET-2026"
             first.style.ticketStampTop = "TRAVEL CLUB"; first.style.ticketFooter = 0.23
+            first.style.walkTicket.title = "BEIJING"; first.style.walkTicket.theme = .orange
+            first.style.walkTicket.notes = "手填备注"; first.style.walkTicket.paletteCount = 3
+            first.style.walkTicket.photoMode = .fill; first.style.walkTicket.margin = 0.13
+            first.style.film35.label = "LOCAL 35"; first.style.film35.margin = 0.09; first.style.film35.showSprockets = false
+            first.style.gallery.title = "静"; first.style.gallery.paper = .charcoal; first.style.gallery.footer = 0.22
+            first.style.editorial.title = "TIANJIN"; first.style.editorial.accent = .custom; first.style.editorial.accentHex = "#305070"
+            first.style.instant.caption = "留住此刻"; first.style.instant.captionFont = "Comic Sans MS"; first.style.instant.border = 0.06
             first.style.classicBrand = .hasselblad
             first.style.classicArrangement = .split
             first.style.classicFooter = 0.14
@@ -119,6 +146,9 @@ struct SessionChecks {
             try first.setLogo(a)
             let exported = root.appendingPathComponent("exported.png")
             try fixture(exported)
+            first.style.cinema.subtitle = "记住今天"; first.style.cinema.bottom = 0.25
+            first.style.receipt.place = "LOCAL"; first.style.receipt.margin = 0.16
+            first.style.tornPaper.caption = "Quiet"; first.style.tornPaper.roughness = 0.006
             first.items[1].exportedTo = exported
             try await loaded(first, b)
             try check(first.flushSession(), "退出前立即保存当前照片，无需切换照片")
@@ -135,6 +165,21 @@ struct SessionChecks {
             subprocess.waitUntilExit()
             let probeOutput = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             try check(subprocess.terminationStatus == 0, "真正重新启动一个进程后完整恢复会话：\(probeOutput.trimmingCharacters(in: .whitespacesAndNewlines))")
+
+            let retiredRoot = root.appendingPathComponent("retired-template")
+            try FileManager.default.createDirectory(at: retiredRoot, withIntermediateDirectories: true)
+            var retiredJSON = try JSONSerialization.jsonObject(with: Data(contentsOf: sessionStore.sessionURL)) as! [String: Any]
+            var retiredStyle = retiredJSON["style"] as! [String: Any]
+            retiredStyle["template"] = "contactSheet"; retiredStyle["contactSheet"] = ["showFilenames": true]
+            retiredJSON["style"] = retiredStyle
+            let retiredStore = StudioSessionStore(root: retiredRoot)
+            try JSONSerialization.data(withJSONObject: retiredJSON).write(to: retiredStore.sessionURL)
+            let migrated = StudioModel(sessionStore: retiredStore); migrated.start(arguments: [])
+            try await loaded(migrated, b)
+            try check(migrated.style.template == .film35 && migrated.items.map(\.id) == [aID, bID]
+                && migrated.batchSelectedCount == 1 && migrated.style.film35.label == "LOCAL 35"
+                && migrated.metadata.camera == "B edited" && migrated.style.signature == "会话 / Session 🐟",
+                "移除接触印样后真实会话恢复原照片、选择、文案与参数，并切回胶片相框")
 
             let restored = StudioModel(sessionStore: sessionStore)
             restored.start(arguments: [])
@@ -159,6 +204,73 @@ struct SessionChecks {
             try await loaded(restored, b)
             try check(restored.inspectorTab == 1 && restored.batchSelectedCount == 1
                 && restored.photo?.url == b, "切换 Tickets 打开样式区并保留当前照片和勾选")
+            restored.resetWalkTicketStyle()
+            try check(restored.style.walkTicket.margin == WalkTicketStyle().margin
+                && restored.style.walkTicket.title == "BEIJING" && restored.style.walkTicket.notes == "手填备注"
+                && restored.style.walkTicket.theme == .orange && restored.style.walkTicket.paletteCount == 3
+                && restored.style.walkTicket.photoMode == .fill && restored.style.ticketTitle == "Journey",
+                "重置漫步票根版式保留内容、主题、照片模式、色卡与其他模板")
+            restored.selectTemplate(.walkTicket)
+            try await loaded(restored, b)
+            try check(restored.inspectorTab == 1 && restored.batchSelectedCount == 1 && restored.photo?.url == b
+                && restored.paletteColors.count == 1 && restored.paletteColors[0].hex == "#112233",
+                "切换漫步票根保留当前照片、勾选与按照片记录的手动色卡")
+            restored.selectTemplate(.colorWalk)
+            try await loaded(restored, b)
+            restored.selectColorWalkBackground(.solid)
+            try await loaded(restored, b)
+            try check(restored.colorWalkHex == "#334455" && restored.paletteColors.first?.hex == "#112233",
+                "切换纯色背景保留独立主色和每张照片的手动条纹色卡")
+            restored.selectColorWalkBackground(.horizontalStripes)
+            try await loaded(restored, b)
+            try check(restored.style.activePaletteCount == 6 && restored.paletteColors.count == 1
+                && restored.paletteColors.first?.hex == "#112233" && restored.colorWalkHex == "#334455",
+                "切回条纹使用手动色卡，不覆盖纯色主色或补回已删颜色")
+            restored.style.colorWalkStamp = "测试盖章"
+            restored.resetColorWalkStyle()
+            try check(restored.style.colorWalkHeader == FrameStyle().colorWalkHeader
+                && restored.style.colorWalkBackground == .horizontalStripes && restored.style.colorWalkStripeCount == 6
+                && restored.style.colorWalkStamp == "测试盖章" && restored.colorWalkHex == "#334455"
+                && restored.paletteColors.first?.hex == "#112233" && restored.batchSelectedCount == 1,
+                "重置 Color Walk 版式保留背景模式、数量、盖章、手动颜色与勾选")
+            for id in [TemplateID.film35, .gallery, .editorial, .instant, .cinema, .receipt, .tornPaper] {
+                restored.selectTemplate(id)
+                try await loaded(restored, b)
+                try check(restored.inspectorTab == 1 && restored.selectedID == bID && restored.batchSelectedCount == 1
+                    && restored.preview != nil && restored.errorMessage == nil,
+                    "切换 \(id.title) 接入实际预览并保留照片与批量勾选")
+                let before = restored.style
+                restored.resetPrintStyle()
+                switch id {
+                case .film35:
+                    try check(restored.style.film35.margin == 0.065 && restored.style.film35.label == "LOCAL 35"
+                        && !restored.style.film35.showSprockets && restored.style.gallery == before.gallery,
+                        "重置胶片版式保留标签、齿孔开关与其他模板")
+                case .gallery:
+                    try check(restored.style.gallery.footer == 0.16 && restored.style.gallery.title == "静"
+                        && restored.style.gallery.paper == .charcoal && restored.style.editorial == before.editorial,
+                        "重置画廊版式保留作品名、纸色与其他模板")
+                case .editorial:
+                    try check(restored.style.editorial.header == 0.23 && restored.style.editorial.title == "TIANJIN"
+                        && restored.style.editorial.accentHex == "#305070" && restored.style.instant == before.instant,
+                        "重置杂志版式保留标题、强调色与其他模板")
+                case .instant:
+                    try check(restored.style.instant.border == 0.04 && restored.style.instant.caption == "留住此刻"
+                        && restored.style.instant.captionFont == "Comic Sans MS" && restored.style.film35 == before.film35,
+                        "重置 Instant 版式保留短句、字体与其他模板")
+                case .cinema:
+                    try check(restored.style.cinema.bottom == 0.17 && restored.style.cinema.subtitle == "记住今天"
+                        && restored.style.receipt == before.receipt, "字幕重置仅恢复版式，保留文案与小票设置")
+                case .receipt:
+                    try check(restored.style.receipt.margin == 0.10 && restored.style.receipt.place == "LOCAL"
+                        && restored.style.tornPaper == before.tornPaper, "小票重置保留地点与其他模板")
+                case .tornPaper:
+                    try check(restored.style.tornPaper.roughness == 0.0035 && restored.style.tornPaper.caption == "Quiet"
+                        && restored.style.cinema == before.cinema, "撕边重置保留短句与其他模板设置")
+                default: break
+                }
+                try await loaded(restored, b)
+            }
             restored.style.classicUseCustomLogo = true
             restored.removeLogo()
             try check(!restored.hasCustomLogo && !restored.style.classicUseCustomLogo,

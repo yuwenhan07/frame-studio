@@ -8,13 +8,31 @@ public enum TemplateID: String, CaseIterable, Codable, Identifiable, Sendable {
     case postageFrame
     case classicFrame
     case tickets
+    case walkTicket
+    case film35, gallery, editorial, instant
+    case cinema, receipt, tornPaper
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        // Retired local templates must not prevent the rest of a saved session from restoring.
+        if value == "contactSheet" { self = .film35; return }
+        guard let template = Self(rawValue: value) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown template: \(value)")
+        }
+        self = template
+    }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer(); try container.encode(rawValue)
+    }
     public var id: String { rawValue }
+    public var isPrint: Bool { self == .film35 || self == .gallery || self == .editorial || self == .instant || isKeepsake }
+    public var isKeepsake: Bool { self == .cinema || self == .receipt || self == .tornPaper }
     public var isPalette: Bool { self == .colorCircles || self == .colorSquares }
     public var title: String {
-        switch self { case .softFrame: return "柔焦画框"; case .colorCircles: return "圆形色卡"; case .colorSquares: return "方形色卡"; case .colorWalk: return "Color Walk"; case .postageFrame: return "邮票画框"; case .classicFrame: return "经典画框"; case .tickets: return "Tickets 票券" }
+        switch self { case .softFrame: return "柔焦画框"; case .colorCircles: return "圆形色卡"; case .colorSquares: return "方形色卡"; case .colorWalk: return "Color Walk"; case .postageFrame: return "邮票画框"; case .classicFrame: return "经典画框"; case .tickets: return "Tickets 票券"; case .walkTicket: return "漫步票根"; case .film35: return "胶片相框"; case .gallery: return "画廊留白"; case .editorial: return "旅行杂志"; case .instant: return "Instant 即影即有"; case .cinema: return "电影字幕 Cinema"; case .receipt: return "记忆小票 Receipt"; case .tornPaper: return "撕边相纸 Paper" }
     }
     public var subtitle: String {
-        switch self { case .softFrame: return "同源虚化 · 悬浮照片"; case .colorCircles: return "照片主色 · 圆形呈现"; case .colorSquares: return "照片主色 · 方形与菱形"; case .colorWalk: return "一张照片 · 一种色调"; case .postageFrame: return "齿孔白边 · 旅途落款"; case .classicFrame: return "经典品牌 · 纯白底栏"; case .tickets: return "旅途票根 · 邮戳与条码" }
+        switch self { case .softFrame: return "同源虚化 · 悬浮照片"; case .colorCircles: return "照片主色 · 圆形呈现"; case .colorSquares: return "照片主色 · 方形与菱形"; case .colorWalk: return "照片色调 · 纯色与条纹"; case .postageFrame: return "齿孔白边 · 旅途落款"; case .classicFrame: return "经典品牌 · 纯白底栏"; case .tickets: return "旅途票根 · 邮戳与条码"; case .walkTicket: return "横向票根 · 城市与色卡"; case .film35: return "窄黑边 · 暖色编号"; case .gallery: return "暖白卡纸 · 作品落款"; case .editorial: return "衬线标题 · 旅行影像"; case .instant: return "即影相纸 · 留住此刻"; case .cinema: return "黑色幕边 · 双行字幕"; case .receipt: return "暖白票纸 · 日常凭证"; case .tornPaper: return "自然撕边 · 轻柔纸影" }
     }
 }
 
@@ -53,6 +71,8 @@ public struct FrameStyle: Codable, Equatable, Sendable {
     public var colorWalkDetail: ColorWalkDetail = .captureTime
     public var colorWalkCustomDetail = ""
     public var colorWalkInk: ColorWalkInk = .white
+    public var colorWalkBackground: ColorWalkBackground = .solid
+    public var colorWalkStripeCount: Int = 4
     public var postageVariant: PostageVariant = .plain
     public var postageMargin: Double = 0.105
     public var postageBorder: Double = 0.027
@@ -82,6 +102,19 @@ public struct FrameStyle: Codable, Equatable, Sendable {
     public var ticketStampTop: String = "WORLD POST"
     public var ticketStampBottom: String = "AIR MAIL"
     public var ticketBarcodeValue: String = "FRAMESTUDIO"
+    public var film35 = Film35Style()
+    public var gallery = GalleryStyle()
+    public var editorial = EditorialStyle()
+    public var instant = InstantStyle()
+    public var cinema = CinemaStyle()
+    public var receipt = ReceiptStyle()
+    public var tornPaper = TornPaperStyle()
+    public var walkTicket = WalkTicketStyle()
+    public var activePaletteCount: Int {
+        if template == .walkTicket { return walkTicket.paletteCount }
+        if template == .colorWalk && colorWalkBackground == .horizontalStripes { return colorWalkStripeCount }
+        return paletteCount
+    }
     public var classicArrangement: ClassicArrangement = .centered
     public var classicBrand: CameraBrand = .automatic
     public var classicFooter: Double = 0.12
@@ -109,9 +142,11 @@ public struct FrameStyle: Codable, Equatable, Sendable {
         case paletteCount, paletteMargin, paletteFooter, paletteSwatchSize, paletteShowHex, paletteShowSignature, paletteDiamond, paletteOrder
         case colorWalkHeader, colorWalkTextScale, colorWalkStamp, colorWalkShowStamp, colorWalkDetail, colorWalkCustomDetail, colorWalkInk
         case colorWalkTextPosition
+        case colorWalkBackground, colorWalkStripeCount
         case postageVariant, postageMargin, postageBorder, postagePerforation, postageFooter
         case postageBlur, postageBrightness, postageShadow, postageTextScale, postagePlace, postageDateMode, postageCustomDate
         case ticketMargin, ticketBorder, ticketFooter, ticketPerforation, ticketBlur, ticketBrightness, ticketShadow, ticketTextScale, ticketMarkScale, ticketTitle, ticketSubtitle, ticketDateMode, ticketCustomDate, ticketMark, ticketStampTop, ticketStampBottom, ticketBarcodeValue
+        case walkTicket, film35, gallery, editorial, instant, cinema, receipt, tornPaper
         case classicArrangement, classicBrand, classicFooter, classicMargin, classicBrandScale, classicInfoScale
         case classicBrandColor, classicShowCamera, classicShowParameters, classicShowDate, classicShowSignature, classicUseCustomLogo
     }
@@ -150,6 +185,8 @@ public struct FrameStyle: Codable, Equatable, Sendable {
         colorWalkDetail = try values.decodeIfPresent(ColorWalkDetail.self, forKey: .colorWalkDetail) ?? colorWalkDetail
         colorWalkCustomDetail = try values.decodeIfPresent(String.self, forKey: .colorWalkCustomDetail) ?? colorWalkCustomDetail
         colorWalkInk = try values.decodeIfPresent(ColorWalkInk.self, forKey: .colorWalkInk) ?? colorWalkInk
+        colorWalkBackground = try values.decodeIfPresent(ColorWalkBackground.self, forKey: .colorWalkBackground) ?? colorWalkBackground
+        colorWalkStripeCount = min(8, max(2, try values.decodeIfPresent(Int.self, forKey: .colorWalkStripeCount) ?? colorWalkStripeCount))
         postageVariant = try values.decodeIfPresent(PostageVariant.self, forKey: .postageVariant) ?? postageVariant
         postageMargin = try values.decodeIfPresent(Double.self, forKey: .postageMargin) ?? postageMargin
         postageBorder = try values.decodeIfPresent(Double.self, forKey: .postageBorder) ?? postageBorder
@@ -179,6 +216,14 @@ public struct FrameStyle: Codable, Equatable, Sendable {
         ticketStampTop = try values.decodeIfPresent(String.self, forKey: .ticketStampTop) ?? ticketStampTop
         ticketStampBottom = try values.decodeIfPresent(String.self, forKey: .ticketStampBottom) ?? ticketStampBottom
         ticketBarcodeValue = try values.decodeIfPresent(String.self, forKey: .ticketBarcodeValue) ?? ticketBarcodeValue
+        film35 = try values.decodeIfPresent(Film35Style.self, forKey: .film35) ?? film35
+        gallery = try values.decodeIfPresent(GalleryStyle.self, forKey: .gallery) ?? gallery
+        editorial = try values.decodeIfPresent(EditorialStyle.self, forKey: .editorial) ?? editorial
+        instant = try values.decodeIfPresent(InstantStyle.self, forKey: .instant) ?? instant
+        cinema = try values.decodeIfPresent(CinemaStyle.self, forKey: .cinema) ?? cinema
+        receipt = try values.decodeIfPresent(ReceiptStyle.self, forKey: .receipt) ?? receipt
+        tornPaper = try values.decodeIfPresent(TornPaperStyle.self, forKey: .tornPaper) ?? tornPaper
+        walkTicket = try values.decodeIfPresent(WalkTicketStyle.self, forKey: .walkTicket) ?? walkTicket
         classicArrangement = try values.decodeIfPresent(ClassicArrangement.self, forKey: .classicArrangement) ?? classicArrangement
         classicBrand = try values.decodeIfPresent(CameraBrand.self, forKey: .classicBrand) ?? classicBrand
         classicFooter = try values.decodeIfPresent(Double.self, forKey: .classicFooter) ?? classicFooter
@@ -220,6 +265,8 @@ public struct FrameStyle: Codable, Equatable, Sendable {
     }
 
     public func sideMargin(imageWidth: Int, imageHeight: Int) -> Double {
+        if template.isKeepsake { return KeepsakeLayout.sideMargin(self) }
+        if template.isPrint { return PrintLayout.sideMargin(imageWidth: imageWidth, imageHeight: imageHeight, style: self) }
         if template == .colorWalk { return 0 }
         if template == .classicFrame { return min(0.08, max(0, classicMargin)) }
         if template == .tickets { return TicketLayout.margin(self) + TicketLayout.border(self) }
@@ -239,6 +286,26 @@ public struct FrameLayout {
 
     public init(imageWidth: Int, imageHeight: Int, outputWidth: Int, style: FrameStyle) {
         let w = CGFloat(max(64, outputWidth))
+        if style.template.isKeepsake {
+            let l = KeepsakeLayout(imageWidth: imageWidth, imageHeight: imageHeight, outputWidth: Int(w), style: style)
+            self.width = l.width; self.height = l.height; self.photoRect = l.photoRect
+            self.titleCenterY = l.headerRect.midY; self.parametersCenterY = l.footerRect.midY; self.signatureCenterY = l.footerRect.midY
+            return
+        }
+        if style.template.isPrint {
+            let printLayout = PrintLayout(imageWidth: imageWidth, imageHeight: imageHeight, outputWidth: Int(w), style: style)
+            self.width = printLayout.width; self.height = printLayout.height; self.photoRect = printLayout.photoRect
+            self.titleCenterY = printLayout.headerRect.midY; self.parametersCenterY = printLayout.footerRect.midY
+            self.signatureCenterY = printLayout.footerRect.midY
+            return
+        }
+        if style.template == .walkTicket {
+            let ticket = WalkTicketLayout(imageWidth: imageWidth, imageHeight: imageHeight, outputWidth: Int(w), style: style.walkTicket)
+            self.width = ticket.width; self.height = ticket.height; self.photoRect = ticket.photoRect
+            self.titleCenterY = ticket.body.midY; self.parametersCenterY = ticket.body.midY
+            self.signatureCenterY = ticket.body.midY
+            return
+        }
         if style.template == .tickets {
             let ticket = TicketLayout(imageWidth: imageWidth, imageHeight: imageHeight, outputWidth: Int(w), style: style)
             self.width = ticket.width; self.height = ticket.height; self.photoRect = ticket.photoRect
@@ -308,7 +375,9 @@ public enum ExportSize: String, CaseIterable, Codable, Identifiable, Sendable {
     public var id: String { rawValue }
     public func width(for photo: PhotoDocument, style: FrameStyle) -> Int {
         let margin = style.sideMargin(imageWidth: photo.width, imageHeight: photo.height)
-        let original = Int(ceil(Double(photo.width) / (1 - margin * 2)))
+        let original = style.template == .walkTicket
+            ? WalkTicketLayout.originalWidth(imageWidth: photo.width, imageHeight: photo.height, style: style.walkTicket)
+            : Int(ceil(Double(photo.width) / (1 - margin * 2)))
         switch self {
         case .original: return original
         case .ultra: return min(3840, original)
