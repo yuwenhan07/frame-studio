@@ -69,7 +69,8 @@ struct SessionChecks {
             && model.style.instant.border == 0.06, "独立进程恢复 Instant 文案、字体和相纸边框")
         try check(model.style.cinema.subtitle == "记住今天" && model.style.cinema.bottom == 0.25
             && model.style.receipt.place == "LOCAL" && model.style.receipt.margin == 0.16
-            && model.style.tornPaper.caption == "Quiet" && model.style.tornPaper.roughness == 0.006,
+            && model.style.tornPaper.caption == "Quiet" && model.style.tornPaper.roughness == 0.006
+            && model.style.tornPaper.showCaptionArea && model.style.tornPaper.border == 0.04,
             "独立进程恢复 Cinema、Receipt 和 Paper 的文案与版式")
         try check(model.items[0].paletteOverride?.isEmpty == true && model.items[0].colorWalkOverride?.hex == "#4A7B2C"
             && model.batchSelectedCount == 1 && model.hasCustomLogo, "独立进程恢复删空色卡、主色、批量勾选和 Logo")
@@ -149,6 +150,7 @@ struct SessionChecks {
             first.style.cinema.subtitle = "记住今天"; first.style.cinema.bottom = 0.25
             first.style.receipt.place = "LOCAL"; first.style.receipt.margin = 0.16
             first.style.tornPaper.caption = "Quiet"; first.style.tornPaper.roughness = 0.006
+            first.style.tornPaper.showCaptionArea = true; first.style.tornPaper.border = 0.04
             first.items[1].exportedTo = exported
             try await loaded(first, b)
             try check(first.flushSession(), "退出前立即保存当前照片，无需切换照片")
@@ -266,6 +268,7 @@ struct SessionChecks {
                         && restored.style.tornPaper == before.tornPaper, "小票重置保留地点与其他模板")
                 case .tornPaper:
                     try check(restored.style.tornPaper.roughness == 0.0035 && restored.style.tornPaper.caption == "Quiet"
+                        && restored.style.tornPaper.showCaptionArea && restored.style.tornPaper.border == 0.009
                         && restored.style.cinema == before.cinema, "撕边重置保留短句与其他模板设置")
                 default: break
                 }

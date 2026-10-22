@@ -4,7 +4,7 @@ import FrameCore
 func runKeepsakeChecks(root: URL, folder: URL, photo: PhotoDocument, demo: PhotoDocument,
                        portrait: PhotoDocument, renderer: FrameRenderer) throws {
     let expected: [(TemplateID, Int, Int, Int, Int, Int, Int)] = [
-        (.cinema,902,1735,30,100,970,710), (.receipt,1097,1705,160,280,840,710), (.tornPaper,820,1470,130,130,870,600)
+        (.cinema,902,1735,30,100,970,710), (.receipt,1097,1705,160,280,840,710), (.tornPaper,720,1421,130,130,870,600)
     ]
     for (id,height,portraitHeight,left,top,right,bottom) in expected {
         var s = FrameStyle(); s.template = id
@@ -16,7 +16,7 @@ func runKeepsakeChecks(root: URL, folder: URL, photo: PhotoDocument, demo: Photo
         let image = try renderer.render(photo:photo,metadata:photo.metadata,style:s,width:1000)
         check(sample(image,x:left,y:top) == [240,30,20] && sample(image,x:right,y:top) == [20,220,40]
             && sample(image,x:left,y:bottom) == [20,50,240] && sample(image,x:right,y:bottom) == [245,220,20],
-            "\(id.title) 四角像素与方向正确，没有裁切或滤镜")
+            "\(id.title) 主体四个象限保持原色与方向")
         let preview = try renderer.render(photo:photo,metadata:photo.metadata,style:s,width:1000,preview:true)
         check((image.dataProvider!.data! as Data) == (preview.dataProvider!.data! as Data), "\(id.title) 预览与导出一致")
         let ow = ExportSize.original.width(for:photo,style:s)
@@ -60,8 +60,45 @@ func runKeepsakeChecks(root: URL, folder: URL, photo: PhotoDocument, demo: Photo
     let torn = try renderer.render(photo:photo,metadata:PhotoMetadata(),style:s,width:1000)
     check((smooth.dataProvider!.data! as Data) != (torn.dataProvider!.data! as Data)
         && sample(smooth,x:250,y:300) == sample(torn,x:250,y:300),"自然撕边与阴影实际改变纸面边缘，不触碰照片")
+    var ripped = FrameStyle(); ripped.template = .tornPaper; ripped.tornPaper.shadow = 0
+    let rippedImage = try renderer.render(photo: photo, metadata: PhotoMetadata(), style: ripped, width: 1000)
+    var starts: [Int] = [], whiteCore = 0
+    for y in stride(from: 140, to: 580, by: 3) {
+        let row = (70..<105).first { x in
+            let p = sample(rippedImage, x: x, y: y)
+            return p == [240,30,20] || p == [20,50,240]
+        }
+        if let row { starts.append(row) }
+        whiteCore += (70..<100).filter { x in
+            let p = sample(rippedImage, x: x, y: y); return p[0] > 230 && p[1] > 225 && p[2] > 210
+        }.count
+    }
+    check(starts.count > 140 && Set(starts).count >= 5 && starts.max()! - starts.min()! >= 5,
+          "照片本身的左沿存在大小不同的撕口，不再是规整矩形")
+    check(whiteCore > 300, "撕边照片周围可见白色纸芯和纤维")
+    let smallPoints = TornPaperEdge.points(rect: CGRect(x:70,y:70,width:860,height:580),depth:14,step:2.8)
+    let largePoints = TornPaperEdge.points(rect: CGRect(x:140,y:140,width:1720,height:1160),depth:28,step:5.6)
+    check(smallPoints.count == largePoints.count && zip(smallPoints,largePoints).allSatisfy {
+        abs($0.x * 2 - $1.x) < 0.000001 && abs($0.y * 2 - $1.y) < 0.000001
+    }, "预览与大图导出保持同一撕裂轮廓，不随输出尺寸重新随机")
+    ripped.tornPaper.showCaptionArea = true
+    let captionLayout = FrameLayout(imageWidth:600,imageHeight:400,outputWidth:1000,style:ripped)
+    check(captionLayout.height == 831 && captionLayout.photoRect.width == 842,
+          "可选落款区仅增加底部空间，保留同样的主照片宽度")
+    ripped.tornPaper.caption = String(repeating:"纸上文字 Long Caption ",count:30)
+    ripped.signature = String(repeating:"Signature ",count:40); ripped.signatureScale = 2
+    let captioned = try renderer.render(photo: photo, metadata: PhotoMetadata(), style: ripped, width: 1000)
+    check(sample(captioned,x:130,y:130) == [240,30,20] && sample(captioned,x:870,y:620) == [245,220,20],
+          "开启落款区后长文字仍不进入照片主体")
+    let oldPaper = try JSONDecoder().decode(FrameStyle.self,from:Data(#"{"tornPaper":{"border":0.04,"caption":"Keep"}}"#.utf8))
+    check(oldPaper.tornPaper.border == 0.009 && !oldPaper.tornPaper.showCaptionArea && oldPaper.tornPaper.caption == "Keep",
+          "旧宽白边默认值迁移为撕边照片，保留原有短句")
+    ripped.tornPaper.border = 0.04
+    let savedPaper = try JSONDecoder().decode(FrameStyle.self,from:JSONEncoder().encode(ripped))
+    check(savedPaper.tornPaper.border == 0.04 && savedPaper.tornPaper.showCaptionArea,
+          "手动选回宽白边和落款区后，重新打开仍保留设置")
     for id in [TemplateID.receipt,.tornPaper] {
-        s = FrameStyle(); s.template = id
+        s = FrameStyle(); s.template = id; s.tornPaper.showCaptionArea = true
         let noDate = try renderer.render(photo:photo,metadata:PhotoMetadata(),style:s,width:600)
         s.receipt.dateMode = .none; s.tornPaper.dateMode = .none
         let hidden = try renderer.render(photo:photo,metadata:PhotoMetadata(),style:s,width:600)

@@ -52,11 +52,14 @@ struct PrintTemplateThumbnail: View {
                 image(width: 27, height: 22).offset(y: -1)
                 Text("—  001  —").font(.system(size: 3, design: .monospaced)).foregroundStyle(Color(nsColor: style.receipt.paper.ink)).offset(y: 17)
             case .tornPaper:
-                Color(red: 0.90, green: 0.88, blue: 0.85)
+                Color(red: 0.42, green: 0.40, blue: 0.36)
                 TornThumbnailShape().fill(Color(nsColor: style.tornPaper.paper.color)).frame(width: 40, height: 43)
                     .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                image(width: 33, height: 28).offset(y: -3)
-                Text("a quiet moment").font(.system(size: 3, design: .serif)).foregroundStyle(Color(nsColor: style.tornPaper.paper.ink)).offset(y: 16)
+                image(width: 36, height: style.tornPaper.showCaptionArea ? 28 : 38)
+                    .clipShape(TornThumbnailShape()).offset(y: style.tornPaper.showCaptionArea ? -3 : 0)
+                if style.tornPaper.showCaptionArea {
+                    Text("a quiet moment").font(.system(size: 3, design: .serif)).foregroundStyle(Color(nsColor: style.tornPaper.paper.ink)).offset(y: 16)
+                }
             default: EmptyView()
             }
         }.frame(width: 48, height: 50).clipped()
@@ -65,6 +68,6 @@ struct PrintTemplateThumbnail: View {
 
 private struct TornThumbnailShape: Shape {
     func path(in rect: CGRect) -> Path {
-        Path(PaperEdge.torn(rect: rect, depth: 0.7, step: 1.4))
+        Path(PaperEdge.torn(rect: rect, depth: 1.5, step: 0.6))
     }
 }

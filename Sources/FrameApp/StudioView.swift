@@ -481,8 +481,9 @@ struct StudioView: View {
         case .colorCircles, .colorSquares: return "沿用当前色卡样式与落款，每张照片独立提取主色。"
         case .softFrame: return "沿用当前画框、落款和 Logo，保留每张照片的拍摄参数。"
         case .film35: return "共用胶片标签、编号和版式，日期与拍摄参数按各张照片读取；编号为手填，整批共用。"
-        case .gallery, .instant, .tornPaper: return "共用文案、相纸和落款；拍摄日期逐张读取，自定义日期整批共用，保留完整照片。"
+        case .gallery, .instant: return "共用文案、相纸和落款；拍摄日期逐张读取，自定义日期整批共用，保留完整照片。"
         case .cinema: return "共用字幕、场次标记和幕边，保留各张照片的完整构图；个人落款可选择显示。"
+        case .tornPaper: return "共用撕边样式，撕裂只作用于照片最外沿；可选底部落款区，日期逐张读取。"
         case .receipt: return "共用小票文案和纸面，各张照片分别读取拍摄日期和相机信息；编号为手填，整批共用。"
         case .editorial: return "共用杂志标题和版式，拍摄日期与自动强调色逐张读取；自定义颜色整批共用。"
         }
@@ -578,7 +579,7 @@ struct StudioView: View {
             printContentEditor
             Divider()
             sectionTitle("纸面与版式", caption: "PAPER & LAYOUT")
-            Text("保留完整照片。双击滑块数值可恢复该项默认值。")
+            Text(model.style.template == .tornPaper ? "撕裂只作用于最外沿，照片主体保持原色。双击数值可恢复默认值。" : "保留完整照片。双击滑块数值可恢复该项默认值。")
                 .font(.system(size: 9)).foregroundStyle(muted)
             printLayoutEditor
             Button("恢复此模板版式") { model.resetPrintStyle() }
@@ -652,10 +653,15 @@ struct StudioView: View {
             Toggle("显示拍摄参数", isOn: $model.style.receipt.showParameters)
             Toggle("显示个人落款", isOn: $model.style.receipt.showSignature)
         case .tornPaper:
-            labeledField("纸上短句", placeholder: "A quiet moment.", text: $model.style.tornPaper.caption)
-            SignatureFontPicker(title: "短句英文字体", selection: $model.style.tornPaper.captionFont, chinese: false)
-            printDateEditor($model.style.tornPaper.dateMode, custom: $model.style.tornPaper.customDate)
-            Toggle("显示个人落款", isOn: $model.style.tornPaper.showSignature)
+            Toggle("显示底部落款区", isOn: $model.style.tornPaper.showCaptionArea)
+            Text("默认呈现整张撕边照片。开启落款区可显示短句、日期和个人落款；撕裂仅作用于最外沿。")
+                .font(.system(size: 9)).lineSpacing(3).foregroundStyle(muted)
+            if model.style.tornPaper.showCaptionArea {
+                labeledField("纸上短句", placeholder: "A quiet moment.", text: $model.style.tornPaper.caption)
+                SignatureFontPicker(title: "短句英文字体", selection: $model.style.tornPaper.captionFont, chinese: false)
+                printDateEditor($model.style.tornPaper.dateMode, custom: $model.style.tornPaper.customDate)
+                Toggle("显示个人落款", isOn: $model.style.tornPaper.showSignature)
+            }
         default: EmptyView()
         }
     }
@@ -731,9 +737,11 @@ struct StudioView: View {
         case .tornPaper:
             printPaperPicker($model.style.tornPaper.paper)
             printPercentSlider("撕边外留白", value: $model.style.tornPaper.margin, range: 0.035...0.14, defaultValue: TornPaperStyle().margin)
-            printPercentSlider("撕边白边", value: $model.style.tornPaper.border, range: 0.025...0.08, defaultValue: TornPaperStyle().border)
-            printPercentSlider("纸上落款区", value: $model.style.tornPaper.footer, range: 0.09...0.22, defaultValue: TornPaperStyle().footer)
-            printPercentSlider("撕边起伏", value: $model.style.tornPaper.roughness, range: 0.001...0.008, defaultValue: TornPaperStyle().roughness)
+            printPercentSlider("撕边白边", value: $model.style.tornPaper.border, range: 0.004...0.08, defaultValue: TornPaperStyle().border)
+            if model.style.tornPaper.showCaptionArea {
+                printPercentSlider("纸上落款区", value: $model.style.tornPaper.footer, range: 0.09...0.22, defaultValue: TornPaperStyle().footer)
+            }
+            printPercentSlider("撕裂程度", value: $model.style.tornPaper.roughness, range: 0.001...0.008, defaultValue: TornPaperStyle().roughness)
             printPercentSlider("纸面阴影", value: $model.style.tornPaper.shadow, range: 0...0.35, defaultValue: TornPaperStyle().shadow)
             printPercentSlider("纸上文字", value: $model.style.tornPaper.textScale, range: 0.65...1.6, defaultValue: TornPaperStyle().textScale)
         default: EmptyView()

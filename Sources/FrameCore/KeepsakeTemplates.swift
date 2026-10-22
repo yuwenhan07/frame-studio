@@ -77,6 +77,7 @@ public struct ReceiptStyle: Codable, Equatable, Sendable {
 }
 
 public struct TornPaperStyle: Codable, Equatable, Sendable {
+    public var showCaptionArea = false
     public var caption = "A quiet moment."
     public var captionFont = "Times New Roman"
     public var paper: PrintPaper = .ivory
@@ -84,24 +85,26 @@ public struct TornPaperStyle: Codable, Equatable, Sendable {
     public var customDate = ""
     public var showSignature = true
     public var margin = 0.07
-    public var border = 0.04
+    public var border = 0.009
     public var footer = 0.12
     public var roughness = 0.0035
     public var shadow = 0.18
     public var textScale = 1.0
     public init() {}
     private enum CodingKeys: String, CodingKey {
-        case caption, captionFont, paper, dateMode, customDate, showSignature, margin, border, footer, roughness, shadow, textScale
+        case showCaptionArea, caption, captionFont, paper, dateMode, customDate, showSignature, margin, border, footer, roughness, shadow, textScale
     }
     public init(from decoder: Decoder) throws {
         self.init(); let c = try decoder.container(keyedBy: CodingKeys.self)
+        showCaptionArea = try c.decodeIfPresent(Bool.self, forKey: .showCaptionArea) ?? showCaptionArea
         caption = try c.decodeIfPresent(String.self, forKey: .caption) ?? caption
         captionFont = try c.decodeIfPresent(String.self, forKey: .captionFont) ?? captionFont
         paper = try c.decodeIfPresent(PrintPaper.self, forKey: .paper) ?? paper
         dateMode = try c.decodeIfPresent(TicketDateMode.self, forKey: .dateMode) ?? dateMode
         customDate = try c.decodeIfPresent(String.self, forKey: .customDate) ?? customDate
         showSignature = try c.decodeIfPresent(Bool.self, forKey: .showSignature) ?? showSignature
-        margin = try c.limited(.margin, margin, 0.035...0.14); border = try c.limited(.border, border, 0.025...0.08)
+        margin = try c.limited(.margin, margin, 0.035...0.14); border = try c.limited(.border, border, 0.004...0.08)
+        if !c.contains(.showCaptionArea), border == 0.04 { border = 0.009 } // Replace the former broad-border default; preserve custom widths.
         footer = try c.limited(.footer, footer, 0.09...0.22); roughness = try c.limited(.roughness, roughness, 0.001...0.008)
         shadow = try c.limited(.shadow, shadow, 0...0.35); textScale = try c.limited(.textScale, textScale, 0.65...1.6)
     }
@@ -118,7 +121,7 @@ public struct KeepsakeLayout {
         switch style.template {
         case .cinema: return 0
         case .receipt: return min(0.18, max(0.06, style.receipt.margin)) + 0.035
-        case .tornPaper: return min(0.14, max(0.035, style.tornPaper.margin)) + min(0.08, max(0.025, style.tornPaper.border))
+        case .tornPaper: return min(0.14, max(0.035, style.tornPaper.margin)) + min(0.08, max(0.004, style.tornPaper.border))
         default: return 0
         }
     }
@@ -134,7 +137,8 @@ public struct KeepsakeLayout {
             top = outer + w * 0.15; bottom = outer + w * min(0.38, max(0.22, style.receipt.footer))
         default:
             outer = w * min(0.14, max(0.035, style.tornPaper.margin))
-            top = side; bottom = outer + w * min(0.22, max(0.09, style.tornPaper.footer))
+            top = side
+            bottom = style.tornPaper.showCaptionArea ? outer + w * min(0.22, max(0.09, style.tornPaper.footer)) : side
         }
         width = Int(w); height = Int(ceil(top + photoH + bottom))
         photoRect = CGRect(x: side, y: bottom, width: photoW, height: photoH)

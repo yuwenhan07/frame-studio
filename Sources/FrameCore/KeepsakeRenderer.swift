@@ -3,22 +3,7 @@ import AppKit
 /// Vector paper edges stay deterministic between preview and export, at any output scale.
 public enum PaperEdge {
     public static func torn(rect: CGRect, depth: CGFloat, step: CGFloat) -> CGPath {
-        let p = CGMutablePath()
-        let corners = [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
-            CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)]
-        for edge in 0..<4 {
-            let a = corners[edge], b = corners[(edge + 1) % 4]
-            let n = max(2, Int(hypot(b.x-a.x, b.y-a.y) / max(1, step)))
-            let inward = [CGVector(dx:0,dy:1), CGVector(dx:-1,dy:0), CGVector(dx:0,dy:-1), CGVector(dx:1,dy:0)][edge]
-            for i in 0..<n {
-                let t = CGFloat(i) / CGFloat(n)
-                let wave = 0.40 + 0.24 * sin(CGFloat(i * 7 + edge * 13)) + 0.18 * sin(CGFloat(i * 19 + edge * 5))
-                let d = depth * wave
-                let point = CGPoint(x: a.x + (b.x-a.x)*t + inward.dx*d, y: a.y + (b.y-a.y)*t + inward.dy*d)
-                if edge == 0 && i == 0 { p.move(to: point) } else { p.addLine(to: point) }
-            }
-        }
-        p.closeSubpath(); return p
+        TornPaperEdge.path(points: TornPaperEdge.points(rect: rect, depth: depth, step: step))
     }
     public static func receipt(rect: CGRect, tooth: CGFloat) -> CGPath {
         let p = CGMutablePath(), n = max(2, Int(rect.width / max(1, tooth)))
@@ -50,15 +35,33 @@ extension FrameRenderer {
             context.addPath(PaperEdge.receipt(rect: l.cardRect, tooth: w * 0.014))
             context.setFillColor(style.receipt.paper.color.cgColor); context.fillPath(); context.restoreGState()
         case .tornPaper:
-            fill(canvas, PaletteColor(hex: "#E5E1D9")!.color)
+            let paper = style.tornPaper
+            fill(canvas, PaletteColor(hex: "#6A655D")!.color)
+            let depth = w * min(0.008, max(0.001, paper.roughness)) * 4
+            let points = TornPaperEdge.points(rect: l.cardRect, depth: depth, step: w * 0.0028)
             context.saveGState()
-            context.setShadow(offset: CGSize(width: 0, height: -w * 0.006), blur: w * 0.018,
-                color: NSColor.black.withAlphaComponent(min(0.35, max(0, style.tornPaper.shadow))).cgColor)
-            context.addPath(PaperEdge.torn(rect: l.cardRect, depth: w * min(0.008, max(0.001, style.tornPaper.roughness)), step: w * 0.005))
-            context.setFillColor(style.tornPaper.paper.color.cgColor); context.fillPath(); context.restoreGState()
+            context.setShadow(offset: CGSize(width: 0, height: -w * 0.006), blur: w * 0.014,
+                color: NSColor.black.withAlphaComponent(min(0.35, max(0, paper.shadow))).cgColor)
+            context.addPath(TornPaperEdge.path(points: points))
+            context.setFillColor(paper.paper.color.cgColor); context.fillPath(); context.restoreGState()
+            TornPaperEdge.fibers(in: context, points: points, width: w, seed: 2187)
         default: break
         }
-        fill(r, .white); context.draw(preview ? photo.preview : photo.image, in: r)
+        if style.template == .tornPaper {
+            let depth = w * min(0.008, max(0.001, style.tornPaper.roughness)) * 4
+            let outer = TornPaperEdge.points(rect: l.cardRect, depth: depth, step: w * 0.0028)
+            let photoEdge = TornPaperEdge.points(rect: r, depth: depth * 0.68, step: w * 0.0025, seed: 3419)
+            context.saveGState()
+            context.addPath(TornPaperEdge.path(points: outer)); context.clip()
+            context.addPath(TornPaperEdge.path(points: photoEdge)); context.clip()
+            fill(r, .white); context.draw(preview ? photo.preview : photo.image, in: r)
+            context.restoreGState()
+            context.saveGState(); context.addPath(TornPaperEdge.path(points: outer)); context.clip()
+            TornPaperEdge.fibers(in: context, points: photoEdge, width: w, seed: 8791)
+            context.restoreGState()
+        } else {
+            fill(r, .white); context.draw(preview ? photo.preview : photo.image, in: r)
+        }
         switch style.template {
         case .cinema:
             let s = style.cinema, ink = s.ink.color, scale = CGFloat(min(1.6, max(0.65, s.textScale)))
@@ -106,6 +109,7 @@ extension FrameRenderer {
                     size:w * 0.012 * scale * CGFloat(style.signatureScale),ink:ink,align:0.5)
             }
         case .tornPaper:
+            guard style.tornPaper.showCaptionArea else { break }
             let s = style.tornPaper, ink = s.paper.ink, scale = CGFloat(min(1.6, max(0.65, s.textScale)))
             text.line(s.caption, rect:CGRect(x:f.minX,y:f.minY+f.height * 0.52,width:f.width,height:f.height * 0.29),
                 size:w * 0.025 * scale,ink:ink,font:s.captionFont)
