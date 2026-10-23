@@ -18,6 +18,10 @@ app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,Op
 
 const files = new FileService({
   processImage: async (buffer, info, format) => {
+    if (!format && ['image/webp', 'image/bmp'].includes(info.mime)) {
+      await decodeBrowserImport(buffer, info);
+      return undefined;
+    }
     const decoded = nativeImage.createFromBuffer(buffer);
     if (decoded.isEmpty()) throw new Error('图片内容损坏或当前系统无法解码此格式。');
     const { width, height } = decoded.getSize();
@@ -33,6 +37,27 @@ const files = new FileService({
 const sessions = new SessionStore(app.getPath('userData'));
 const inFlight = new Set();
 let mainWindow = null, closeApproved = false, rendererReady = false, sessionLoaded = false;
+
+async function decodeBrowserImport(buffer, info) {
+  if (!mainWindow || mainWindow.isDestroyed()) throw new Error('图片解码窗口不可用，请重试。');
+  // NativeImage only guarantees PNG/JPEG. Chromium decodes these import-only formats
+  // in the existing sandbox, using the same decoder as the eventual canvas renderer.
+  // The only interpolated value is a generated raster data URL, never renderer code or a path.
+  const dataUrl = `data:${info.mime};base64,${buffer.toString('base64')}`;
+  const code = `new Promise((resolve, reject) => {
+    const image = new Image();
+    const dispose = () => { clearTimeout(timer); image.onload = null; image.onerror = null; image.src = ''; };
+    const timer = setTimeout(() => { dispose(); reject(new Error('图片解码超时。')); }, 15000);
+    image.onload = () => {
+      const dimensions = { width: image.naturalWidth, height: image.naturalHeight };
+      dispose(); resolve(dimensions);
+    };
+    image.onerror = () => { dispose(); reject(new Error('图片内容损坏或当前系统无法解码此格式。')); };
+    image.src = ${JSON.stringify(dataUrl)};
+  })`;
+  const result = await mainWindow.webContents.executeJavaScriptInIsolatedWorld(1001, [{ code }]);
+  if (!result || !Number.isSafeInteger(result.width) || !Number.isSafeInteger(result.height) || result.width <= 0 || result.height <= 0 || result.width > 16000 || result.height > 16000 || result.width * result.height > 40_000_000) throw new Error('解码后的图片尺寸超过限制。');
+}
 
 function assertSender(event) {
   if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || event.senderFrame.url !== APP_URL) throw new Error('拒绝来自未授权页面的请求。');

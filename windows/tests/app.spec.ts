@@ -155,7 +155,7 @@ test('real Electron renders all 15 templates, imports WebP/BMP, and applies JPEG
   await fs.mkdir(path.join(root, '.artifacts'), { recursive: true });
   await page.screenshot({ path: path.join(root, '.artifacts', 'app.png') });
   expect(await page.evaluate(() => ({ node: typeof (window as unknown as { require?: unknown }).require, bridge: typeof window.frameStudio.importPhotos }))).toEqual({ node: 'undefined', bridge: 'function' });
-  await removeAll(page); await importPhotos(app, page, Object.values(f.paths));
+  await removeAll(page); await importPhotos(app, page, [f.paths.first, f.paths.second, f.paths.rotated]);
   await expect(page.locator('#templates button')).toHaveCount(15);
   for (const id of templateIds) {
     await selectTemplate(page, id);
@@ -185,9 +185,16 @@ test('real Electron renders all 15 templates, imports WebP/BMP, and applies JPEG
   for (const [i, expected] of [[255, 255, 0], [255, 0, 0], [0, 255, 255], [0, 0, 255]].entries()) {
     expect(oriented[i].every((value, channel) => Math.abs(value - expected[channel]) <= 12)).toBe(true);
   }
+  await dialogs(app, [f.paths.webp, f.paths.bmp]); await page.locator('#import').click();
+  await expect(page.locator('#photos .photo-row')).toHaveCount(5);
+  await expect(page.locator('#status')).toContainText('已载入 2 张照片');
+  await expect(page.locator('#import')).toBeEnabled();
   for (const filename of [f.paths.webp, f.paths.bmp]) {
     await selectPhoto(page, path.basename(filename));
     await expect(page.locator('#dimensions')).toHaveText('900 × 600');
+    const center = await page.locator('#preview canvas').evaluate((canvas: HTMLCanvasElement) =>
+      [...canvas.getContext('2d')!.getImageData(Math.round(canvas.width * .5), Math.round(canvas.width * .34), 1, 1).data].slice(0, 3));
+    expect(center[0]).toBeLessThan(12); expect(center[1]).toBeGreaterThan(243); expect(center[2]).toBeLessThan(12);
   }
   await selectTemplate(page, 'softFrame');
   await page.screenshot({ path: path.join(root, '.artifacts', 'app-test-fixture.png') });
@@ -256,5 +263,13 @@ test('batch and current exports write real Chinese-path files, preserve collisio
   expect((await fs.readdir(output)).sort()).toEqual([firstName, '北京 旅行甲_映框 (2).png', '北京 旅行甲_映框 (3).png', secondName, '北京 旅行乙_映框 (2).png'].sort());
   await page.locator('#export').click(); await expect(page.locator('#status')).toHaveText('导出完成：成功 1，失败 0，未处理 0');
   expect((await rgba(await fs.readFile(path.join(output, '当前 照片.png')))).bytes.equals(secondPixels.bytes)).toBe(true);
+  await page.locator('#format').selectOption('jpeg'); await dialogs(app, [], output, path.join(output, '当前 照片.jpg'));
+  await page.locator('#export').click(); await expect(page.locator('#export')).toBeEnabled();
+  await expect(page.locator('#status')).toHaveText('导出完成：成功 1，失败 0，未处理 0');
+  const jpeg = await fs.readFile(path.join(output, '当前 照片.jpg')), jpegPixels = await rgba(jpeg);
+  expect([...jpeg.subarray(0, 2)]).toEqual([255, 216]); expect(jpeg.includes(Buffer.from('Exif\0\0'))).toBe(false);
+  expect([jpegPixels.width, jpegPixels.height]).toEqual([900, 708]);
+  const center = (300 * 900 + 450) * 4;
+  expect(jpegPixels.bytes[center]).toBeLessThan(12); expect(jpegPixels.bytes[center + 1]).toBeGreaterThan(243); expect(jpegPixels.bytes[center + 2]).toBeLessThan(12);
   expect(await fs.readFile(f.paths.first)).toEqual(firstSource); expect(await fs.readFile(f.paths.second)).toEqual(secondSource);
 });
