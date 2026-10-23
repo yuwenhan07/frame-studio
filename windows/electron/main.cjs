@@ -156,7 +156,7 @@ async function createWindow() {
   mainWindow.webContents.on('will-redirect', event => event.preventDefault());
   mainWindow.webContents.on('will-attach-webview', event => event.preventDefault());
   mainWindow.webContents.on('render-process-gone', (_event, detail) => { rendererReady = false; console.error(`Renderer stopped: ${detail.reason}`); });
-  mainWindow.webContents.on('console-message', (_event, details) => { if (details.level === 'error' || details.level === 'warning') console.error(`Renderer ${details.level}: ${details.message}`); });
+  mainWindow.webContents.on('console-message', details => { if (details.level === 'error' || details.level === 'warning') console.error(`Renderer ${details.level}: ${details.message}`); });
   mainWindow.on('close', event => {
     if (!closeApproved && rendererReady && !smokeArgument) { event.preventDefault(); mainWindow.webContents.send('frame-studio:before-close'); }
   });
@@ -170,7 +170,12 @@ async function createWindow() {
       const result = await mainWindow.webContents.executeJavaScript(`new Promise((resolve, reject) => {
         const deadline = Date.now() + 20000;
         function check() {
-          if (document.body?.dataset.ready === 'true') return resolve({ title: document.title, ready: document.readyState, appReady: true, bridge: typeof window.frameStudio?.importPhotos === 'function', nodeDisabled: typeof window.require === 'undefined', url: location.href });
+          if (document.body?.dataset.ready === 'error') return reject(new Error('Renderer initialization failed.'));
+          if (document.body?.dataset.ready === 'true') {
+            const canvas = document.querySelector('#preview canvas');
+            if (!canvas || canvas.width < 1 || canvas.height < 1 || document.querySelectorAll('#templates button').length !== 15) return reject(new Error('Initial sample preview or templates are missing.'));
+            return resolve({ title: document.title, ready: document.readyState, appReady: true, previewWidth: canvas.width, previewHeight: canvas.height, bridge: typeof window.frameStudio?.importPhotos === 'function', nodeDisabled: typeof window.require === 'undefined', url: location.href });
+          }
           if (Date.now() > deadline) return reject(new Error('Renderer initialization timed out.'));
           setTimeout(check, 50);
         }

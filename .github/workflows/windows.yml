@@ -49,6 +49,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Windows-test-evidence
+          include-hidden-files: true
           path: |
             windows/.artifacts/*.png
             windows/.artifacts/app-test-results.json
