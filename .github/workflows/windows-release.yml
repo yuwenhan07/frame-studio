@@ -1,0 +1,84 @@
+name: Prepare verified Windows release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag
+        required: true
+        type: string
+      source_sha:
+        description: Exact tested source commit
+        required: true
+        type: string
+      build_run:
+        description: Successful Windows desktop workflow run
+        required: true
+        type: string
+      notes:
+        description: Release notes
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: windows-release-${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      BUILD_RUN: ${{ inputs.build_run }}
+      RELEASE_NOTES: ${{ inputs.notes }}
+    steps:
+      - name: Verify the exact successful build
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-windows\.[0-9]+$ ]]
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" > build.json
+          jq -e --arg sha "$SOURCE_SHA" --arg repo "$GITHUB_REPOSITORY" '.head_sha == $sha and .status == "completed" and .conclusion == "success" and .name == "Windows desktop" and .repository.full_name == $repo and .head_repository.full_name == $repo' build.json
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to replace it."
+            exit 1
+          fi
+      - name: Download the tested packages within GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --name FrameStudio-Windows-x64 --dir packages
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, struct
+          version = os.environ['TAG'][1:]
+          expected = {f'FrameStudio-{version}-Windows-x64-Setup.exe', f'FrameStudio-{version}-Windows-x64-Portable.exe'}
+          paths = list(Path('packages').iterdir())
+          assert {p.name for p in paths} == expected
+          for p in paths:
+              assert p.stat().st_size > 10_000_000
+              with p.open('rb') as f:
+                  header = f.read(64)
+                  assert header[:2] == b'MZ'
+                  f.seek(struct.unpack_from('<I', header, 60)[0])
+                  assert f.read(4) == b'PE\0\0'
+              print(p.name, p.stat().st_size)
+          PY
+      - name: Create the formal tag and draft release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > tag.json 2>/dev/null; then
+            jq -e --arg sha "$SOURCE_SHA" '.object.type == "commit" and .object.sha == $sha' tag.json
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$SOURCE_SHA"
+          fi
+          printf '%s\n' "$RELEASE_NOTES" > release-notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease --title "映框 0.12.0 · Windows x64 预览版" --notes-file release-notes.md
+          gh release upload "$TAG" packages/*.exe --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url,tagName,isDraft,assets
