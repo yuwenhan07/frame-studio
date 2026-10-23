@@ -1,0 +1,51 @@
+{
+  "name": "frame-studio-windows",
+  "version": "0.12.0-windows.1",
+  "description": "映框 · 本地摄影画框与水印",
+  "author": "yuwenhan07",
+  "license": "MIT",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/test.mjs",
+    "test:app": "playwright test",
+    "verify": "npm run check && npm test && npm run build && npm run test:app",
+    "start": "npm run build && electron .",
+    "pack:win": "npm run build && electron-builder --win nsis portable --x64 --publish never"
+  },
+  "dependencies": { "exifr": "7.1.3" },
+  "devDependencies": {
+    "@napi-rs/canvas": "1.0.11",
+    "@playwright/test": "1.64.1",
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
+  },
+  "build": {
+    "appId": "local.wenhanyu.frame-studio.windows",
+    "productName": "映框",
+    "executableName": "FrameStudio",
+    "directories": { "output": "release", "buildResources": "assets" },
+    "files": ["dist/**/*", "electron/**/*", "assets/sample.jpg", "assets/icon.png", "licenses/**/*", "PRIVACY.md", "LICENSE", "package.json"],
+    "asar": true,
+    "publish": null,
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "assets/icon.png",
+      "signAndEditExecutable": true,
+      "artifactName": "FrameStudio-${version}-Windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "FrameStudio-${version}-Windows-${arch}-Setup.${ext}",
+      "shortcutName": "映框",
+      "installerLanguages": ["zh_CN", "en_US"]
+    },
+    "portable": { "artifactName": "FrameStudio-${version}-Windows-${arch}-Portable.${ext}" }
+  }
+}

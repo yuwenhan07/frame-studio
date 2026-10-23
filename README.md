@@ -2,6 +2,8 @@
 
 [下载最新版](https://github.com/yuwenhan07/frame-studio/releases/latest) · [隐私说明](PRIVACY.md) · [发布审查](docs/code-review.md)
 
+**Windows 用户：** [下载 Windows x64 预览版](https://github.com/yuwenhan07/frame-studio/releases/tag/v0.12.0-windows.1)，提供安装版和免安装版。独立源码位于 [`windows/`](windows/)，复用 15 个 Canvas 模板，支持本机导入、EXIF、批量导出和会话恢复；与下面介绍的原生 macOS 版有功能差异，详见 [Windows 使用与验证说明](windows/README.md)。
+
 一个完全本地运行的原生 macOS 摄影水印 App。目前提供「柔焦画框」「圆形色卡」「方形色卡」「Color Walk」「邮票画框」「经典画框」「Tickets 票券」「漫步票根」「胶片相框」「画廊留白」「旅行杂志」「Instant 即影即有」「电影字幕 Cinema」「记忆小票 Receipt」「撕边相纸 Paper」十五种模板。柔焦画框以同源虚化背景、圆角主图和相机参数呈现照片；色卡在白色底栏显示照片主色与 HEX 色号；Color Walk 在照片上方铺代表色或多色横向条纹，并加上文字盖章。邮票画框使用同源虚化背景、齿孔白边和可选的地点日期落款。经典画框在纯白底栏呈现相机品牌与拍摄信息。Tickets 票券以细齿上下边、撕线、旅行信息和右下角贴印呈现照片。漫步票根将照片、城市标题、色卡和条码排成横向票根。主照片默认保持完整比例，漫步票根也可选居中裁切。
 
 ## 操作演示

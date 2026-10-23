@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>映框 · Frame Studio</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">映</span><div><strong>映框</strong><small>FRAME STUDIO</small></div><span class="badge">Windows 预览版</span></div>
+    <div class="actions"><button id="import" class="secondary">＋ 导入照片</button><button id="export" class="primary">导出当前</button></div>
+  </header>
+  <main>
+    <aside class="library">
+      <div class="section-heading"><h2>照片</h2><span id="photo-count">0 张</span></div>
+      <div class="list-actions"><button id="select-all">全选</button><button id="invert">反选</button><button id="remove">移除已选</button></div>
+      <div id="photos" class="photo-list"></div>
+      <div class="library-bottom"><button id="batch" class="secondary">导出已选</button><button id="cancel" hidden>停止导出</button><p>仅在本机处理 · 原片保持不变</p></div>
+    </aside>
+    <section class="workspace" id="drop-zone">
+      <div class="workspace-heading"><div><span class="eyebrow">YOUR MOMENT, FRAMED</span><h1 id="preview-title">让照片，多一份表达。</h1></div><span id="dimensions"></span></div>
+      <div id="preview" class="preview"><div class="empty"><strong>把照片拖到这里</strong><p>或点击右上角「导入照片」</p><span>JPEG · PNG · WebP · BMP</span></div></div>
+      <div class="preview-footer"><span id="template-note">15 种画框，留住日常。</span><span>预览与导出共用排版</span></div>
+    </section>
+    <aside class="inspector">
+      <div class="section-heading"><h2>画框与样式</h2><button id="reset">重置此模板</button></div>
+      <div id="templates" class="templates"></div>
+      <details open><summary>文字与排版</summary><div id="fields" class="fields"></div></details>
+      <details><summary>这张照片的拍摄信息</summary><p class="hint">从 EXIF 读取，可手动修正。缺失内容留空。</p><div id="metadata" class="fields"></div></details>
+      <details open id="palette-section"><summary>这张照片的颜色</summary><div id="palette" class="palette"></div><button id="auto-colors">恢复自动取色</button></details>
+      <details open><summary>导出设置</summary><div class="fields">
+        <label>图片格式<select id="format"><option value="jpeg">JPEG · 高品质</option><option value="png">PNG · 无损</option></select></label>
+        <label>最长边上限<select id="size"><option value="1920">1920 像素</option><option value="2560">2560 像素</option><option value="3840">3840 像素</option><option value="4096">4096 像素</option></select></label>
+        <p class="hint">不放大原图。导出不保留 GPS 等原始 EXIF。</p>
+      </div></details>
+    </aside>
+  </main>
+  <footer class="statusbar"><span id="status" role="status">正在载入…</span><span id="save-status"></span></footer>
+  <script src="./app.js"></script>
+</body>
+</html>
