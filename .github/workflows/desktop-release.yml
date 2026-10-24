@@ -1,0 +1,100 @@
+name: Prepare combined desktop release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: New combined release tag
+        required: true
+        type: string
+      notes:
+        description: Release notes
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: combined-release-${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      SOURCE_SHA: ${{ github.sha }}
+      RELEASE_NOTES: ${{ inputs.notes }}
+      WINDOWS_TAG: v0.12.0-windows.1
+      MAC_TAG: v0.11.2
+    steps:
+      - name: Verify source releases and unchanged application code
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to replace it."
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$WINDOWS_TAG" > windows.json
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$MAC_TAG" > mac.json
+          jq -e '.id == 422030207 and .draft == false and (.assets | length == 2) and (.assets | all(.state == "uploaded"))' windows.json
+          jq -e '.id == 420863837 and .draft == false and (.assets | length == 1) and (.assets | all(.state == "uploaded"))' mac.json
+          gh api "repos/$GITHUB_REPOSITORY/compare/c999ff5caf28c69cdf6c357c326b8382d8aec657...$SOURCE_SHA" > windows-diff.json
+          jq -e '.status == "ahead" and (.files | all(.filename | startswith("windows/") | not))' windows-diff.json
+          gh api "repos/$GITHUB_REPOSITORY/compare/5d2c4574f13707317cd1f12bf609a2dd968c7300...$SOURCE_SHA" > mac-diff.json
+          jq -e '.status == "ahead" and (.files | all(.filename | (startswith("Sources/") or startswith("Checks/") or . == "Package.swift" or . == "scripts/build.sh") | not))' mac-diff.json
+      - name: Download both platforms and inspect installation packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir packages
+          gh release download "$WINDOWS_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.exe' --dir packages
+          gh release download "$MAC_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'FrameStudio-v0.11.2-macOS-arm64.zip' --dir packages
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import json, plistlib, struct, zipfile
+          expected = {}
+          for source in ['windows.json', 'mac.json']:
+              for asset in json.loads(Path(source).read_text())['assets']:
+                  expected[asset['name']] = asset['size']
+          paths = list(Path('packages').iterdir())
+          assert len(paths) == 3
+          assert {p.name for p in paths} == set(expected)
+          for p in paths:
+              assert p.stat().st_size == expected[p.name], p.name
+              if p.suffix == '.exe':
+                  with p.open('rb') as f:
+                      header = f.read(64)
+                      assert header[:2] == b'MZ'
+                      f.seek(struct.unpack_from('<I', header, 60)[0])
+                      assert f.read(4) == b'PE\0\0'
+              else:
+                  with zipfile.ZipFile(p) as z:
+                      names = z.namelist()
+                      assert all(not PurePosixPath(n).is_absolute() and '..' not in PurePosixPath(n).parts for n in names)
+                      info = plistlib.loads(z.read('映框.app/Contents/Info.plist'))
+                      assert info['CFBundleShortVersionString'] == '0.11.2'
+                      assert info['CFBundleVersion'] == '27'
+                      assert info['LSMinimumSystemVersion'] == '14.0'
+                      binary = z.read('映框.app/Contents/MacOS/FrameStudio')
+                      assert binary[:4] == b'\xcf\xfa\xed\xfe'
+                      assert struct.unpack_from('<I', binary, 4)[0] == 0x0100000c
+                      executable = z.getinfo('映框.app/Contents/MacOS/FrameStudio')
+                      assert (executable.external_attr >> 16) & 0o111
+                      assert all(n.startswith('映框.app/') or n == '映框.app/' for n in names)
+              print(p.name, p.stat().st_size)
+          PY
+      - name: Create combined draft release with all three packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > tag.json 2>/dev/null; then
+            jq -e --arg sha "$SOURCE_SHA" '.object.type == "commit" and .object.sha == $sha' tag.json
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$SOURCE_SHA"
+          fi
+          printf '%s\n' "$RELEASE_NOTES" > release-notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "映框 $TAG · macOS + Windows" --notes-file release-notes.md
+          gh release upload "$TAG" packages/* --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url,tagName,isDraft,assets
